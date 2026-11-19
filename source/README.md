@@ -18,7 +18,7 @@ The scheduler opens on next week, November 30-December 6. That draft deliberatel
 
 ## Leave policy
 
-Sick and vacation have separate opening balances at October 1. Approved paid leave consumes only scheduled working days from its selected balance. Unpaid leave has its own type and does not consume paid balances. Weekly offs and holidays do not count as leave days. The mock requests include paid sick leave, paid vacation and explicitly unpaid personal leave. Amara's paid request is December 2-3, both working days. Leo asks for December 2-4 against two vacation days; approval is blocked and an explanation appears below the action. Usage on Leave covers October and November through the reporting date. Opening balances less approved paid working days reconcile to available balances.
+Sick and vacation have separate opening balances at October 1. Approved paid leave consumes only scheduled working days from its selected balance. Unpaid leave has its own type and does not consume paid balances. Weekly offs and holidays do not count as leave days. The mock requests include paid sick leave, paid vacation and explicitly unpaid personal leave. Amara's paid request is December 2-3, both working days. Leo asks for December 2-4 against two vacation days; approval stays enabled. Clicking Approve opens a confirmation explaining that two working days will be paid and one will be Loss of Pay (LOP). Confirmation stores the paid dates on the request; only those dates consume vacation balance. Excess dates are unpaid in attendance and payroll. Paid days are allocated chronologically before LOP. Overlapping approved leave and requests with no working days remain blocked with explanations. Attendance and payroll usage covers October and November through the reporting date. The Leave tab retains the original simple Sick/Vacation balance cards. Opening balances less approved paid working days reconcile to available balances.
 
 ## Payroll and attendance
 
@@ -26,4 +26,4 @@ Both read the same clock records and approved leave. Attendance shows scheduled,
 
 ## Persistence and tests
 
-The reconciled dataset uses a new local-storage namespace, so stale demo records cannot mix with the new fixtures. Nine automated tests audit all eight staff, every October date and every November date through the 23rd, roster/clock agreement, leave on working days, weekly overtime boundaries, pay arithmetic and publish gating. Full real-device and screen-reader validation is separate from these data checks.
+The reconciled dataset uses a new local-storage namespace, so stale demo records cannot mix with the new fixtures. Eleven automated tests audit all eight staff, every October date and every November date through the 23rd, roster/clock agreement, leave on working days, weekly overtime boundaries, pay arithmetic and publish gating. Full real-device and screen-reader validation is separate from these data checks.

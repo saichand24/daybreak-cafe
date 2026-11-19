@@ -32,10 +32,23 @@ export const initialRequests=[
  {id:401,staff:3,type:'unpaid',start:'2026-11-05',end:'2026-11-05',reason:'Approved unpaid personal leave',status:'Approved',paid:false}
 ]
 export const requestDays=r=>range(r.start,r.end).filter(day=>scheduledHours(r.staff,day)>0)
-export const leaveAt=(requests,id,day)=>scheduledHours(id,day)>0?requests.find(r=>r.staff===id&&r.status==='Approved'&&r.start<=day&&day<=r.end):undefined
-export const balance=(requests,id,type)=>type==='unpaid'?Infinity:staff[id][type]-requests.filter(r=>r.staff===id&&r.type===type&&r.status==='Approved'&&r.paid).reduce((n,r)=>n+requestDays(r).length,0)
+export const leaveAllocation=(requests,r)=>{
+ const days=requestDays(r),available=r.type==='unpaid'||!r.paid?0:Math.max(0,balance(requests,r.staff,r.type))
+ const paidDays=r.status==='Approved'?(r.paidDays??(r.paid?days:[])):days.slice(0,available)
+ return {days,available,paidDays,lopDays:days.filter(day=>!paidDays.includes(day))}
+}
+export function approveLeave(requests,id){
+ const r=requests.find(item=>item.id===id)
+ if(!r||r.status!=='Pending')throw new Error('This request has already been reviewed.')
+ const allocation=leaveAllocation(requests,r)
+ if(!allocation.days.length)throw new Error('This request has no scheduled working days.')
+ if(allocation.days.some(day=>leaveAt(requests,r.staff,day)))throw new Error('These dates overlap approved leave.')
+ return requests.map(item=>item.id===id?{...item,status:'Approved',paid:allocation.paidDays.length>0,paidDays:allocation.paidDays}:item)
+}
+export const leaveAt=(requests,id,day)=>scheduledHours(id,day)>0?(()=>{const r=requests.find(r=>r.staff===id&&r.status==='Approved'&&r.start<=day&&day<=r.end);return r?{...r,paid:r.paidDays?r.paidDays.includes(day):r.paid}:undefined})():undefined
+export const balance=(requests,id,type)=>type==='unpaid'?Infinity:staff[id][type]-requests.filter(r=>r.staff===id&&r.type===type&&r.status==='Approved'&&r.paid).reduce((n,r)=>n+(r.paidDays??requestDays(r)).length,0)
 export const unavailable=(id,day)=>staff[id].unavailable.includes((new Date(day+'T12:00:00Z').getUTCDay()+6)%7)
-export const leaveSummary=(requests,id,month)=>requests.filter(r=>r.staff===id&&r.status==='Approved').reduce((sum,r)=>{const n=requestDays(r).filter(d=>d.startsWith(month)&&d<=asOf).length;sum[r.paid?'paid':'unpaid']+=n;return sum},{paid:0,unpaid:0})
+export const leaveSummary=(requests,id,month)=>monthDays(month).filter(day=>day<=asOf).reduce((sum,day)=>{const r=leaveAt(requests,id,day);if(r)sum[r.paid?'paid':'unpaid']++;return sum},{paid:0,unpaid:0})
 // The brief does not prescribe severity. These are explicit prototype policies.
 export const rulePolicy={
  minor:{level:'Error',guidance:'Under-18 shifts must end by 22:00.'},
