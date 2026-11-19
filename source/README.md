@@ -27,3 +27,7 @@ Both read the same clock records and approved leave. Attendance shows scheduled,
 ## Persistence and tests
 
 The reconciled dataset uses a new local-storage namespace, so stale demo records cannot mix with the new fixtures. Eleven automated tests audit all eight staff, every October date and every November date through the 23rd, roster/clock agreement, leave on working days, weekly overtime boundaries, pay arithmetic and publish gating. Full real-device and screen-reader validation is separate from these data checks.
+
+## Manager approval demo
+
+Five upcoming requests start Pending: three paid requests and two explicit unpaid requests (Sofia, 3 December; Jules, 4 December). The manager reviews and confirms approval. The Leave tab puts balances above requests. Its new leave-only storage key resets prior demo approvals once while preserving saved schedules. Draft on Home means the planning week has not been published. Scheduler weekly-off overlays use Time-off wording.

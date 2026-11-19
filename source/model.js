@@ -25,6 +25,8 @@ export const initialRequests=[
  {id:1,staff:1,type:'vacation',start:'2026-12-02',end:'2026-12-03',reason:'Family visit',status:'Pending',paid:true},
  {id:2,staff:2,type:'vacation',start:'2026-12-02',end:'2026-12-04',reason:'Travel',status:'Pending',paid:true},
  {id:3,staff:4,type:'sick',start:'2026-12-01',end:'2026-12-01',reason:'Medical appointment',status:'Pending',paid:true},
+ {id:4,staff:3,type:'unpaid',start:'2026-12-03',end:'2026-12-03',reason:'Personal appointment',status:'Pending',paid:false},
+ {id:5,staff:7,type:'unpaid',start:'2026-12-04',end:'2026-12-04',reason:'Personal commitment',status:'Pending',paid:false},
  ...staff.map(p=>{const day=range('2026-10-05','2026-10-09').find(d=>scheduledHours(p.id,d)>0);return {id:100+p.id,staff:p.id,type:'sick',start:day,end:day,reason:'Approved sick leave',status:'Approved',paid:true}}),
  ...[1,3,7].map(id=>({id:200+id,staff:id,type:'unpaid',start:'2026-10-15',end:'2026-10-15',reason:'Personal leave without pay',status:'Approved',paid:false})),
  ...[0,4].map(id=>({id:300+id,staff:id,type:'vacation',start:'2026-10-20',end:'2026-10-20',reason:'Approved vacation',status:'Approved',paid:true})),
@@ -72,7 +74,7 @@ export function validate(shifts,requests,start){
    total+=(t.end-t.start)/60
    if(person.minor&&t.end>1320)add(rulePolicy.minor.level,person.name+' is under 18. The shift on '+day+' ends at '+time(t.end)+', past 22:00. Choose a shift ending by 22:00.',[key])
    if(leaveAt(requests,person.id,day))add(rulePolicy.leave.level,person.name+' has approved leave on '+day+'. Remove or reassign this shift.',[key])
-   if(unavailable(person.id,day))add(rulePolicy.availability.level,person.name+' is unavailable on '+day+'. Reassign the shift or confirm availability.',[key])
+   if(unavailable(person.id,day))add(rulePolicy.availability.level,person.name+' is on time-off on '+day+'. Reassign the shift or confirm availability.',[key])
    for(const offset of [-1,1]){
     if(offset===1&&day!==days[6])continue
     const adjacent=person.id+'|'+date(day,offset), other=templates[shifts[adjacent]]
