@@ -2,24 +2,40 @@ export const staff = [
  ['Maya Chen','Shift lead',23,6,10],['Amara Okafor','Barista',19,5,8],['Leo Rivera','Barista',18.5,4,2],
  ['Sofia Patel','Kitchen',21,4,7],['Noah Kim','Barista',18,5,7],['Isla Brooks','Counter',16,3,5,true],
  ['Finn Murphy','Counter',16,3,5,true],['Jules Martin','Kitchen',20,4,8]
-].map(([name,role,rate,sick,vacation,minor],id)=>({id,name,role,rate:rate*10,sick,vacation,minor, unavailable:[(id+5)%7]}))
+].map(([name,role,rate,sick,vacation,minor],id)=>({id,name,role,rate:rate*10,sick,vacation,minor, unavailable:[[6],[5,6],[0,1],[1,2],[5,6],[2,3],[3,4],[0,1]][id]}))
 export const templates=[{name:'Opening',start:360,end:840,tone:'mint'},{name:'Midday',start:600,end:1080,tone:'blue'},{name:'Closing',start:900,end:1350,tone:'peach'}]
 export const date=(iso,offset=0)=>{const d=new Date(iso+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+offset);return d.toISOString().slice(0,10)}
 export const monday=iso=>date(iso,-((new Date(iso+'T12:00:00Z').getUTCDay()+6)%7))
-export const week='2026-11-16'
+export const asOf='2026-11-23'
+export const week='2026-11-30'
+export const holidays=['2026-10-02','2026-11-11']
+export const rosterStart='2026-09-28'
+templates.push({name:'Day shift',start:540,end:1020,tone:'mint'})
+export const rosterShift=(id,day)=>day<rosterStart||holidays.includes(day)||staff[id].unavailable.includes((new Date(day+'T12:00:00Z').getUTCDay()+6)%7)?null:3
+export const scheduledHours=(id,day)=>rosterShift(id,day)==null?0:8
 export const range=(start,end)=>{const result=[];for(let day=start;day<=end;day=date(day,1)) result.push(day);return result}
 export const time=m=>m==null?'—':String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0')
-const plan=[[0,1,0,1,0,1,-1],[1,0,1,-1,-1,0,1],[2,2,-1,0,1,2,-1],[0,-1,0,0,-1,1,0],[-1,1,-1,1,2,2,2],[1,-1,1,-1,1,2,-1],[-1,0,-1,0,-1,-1,1],[2,-1,2,2,-1,2,0]]
-export const initialShifts=Object.fromEntries([-7,0].flatMap(offset=>plan.flatMap((row,id)=>row.flatMap((type,i)=>type<0?[]:[[id+'|'+date(week,offset+i),type]]))))
+export const initialShifts=Object.fromEntries(range(rosterStart,date(week,6)).flatMap(day=>staff.flatMap(p=>rosterShift(p.id,day)==null?[]:[[p.id+'|'+day,3]])))
+for(const day of range(week,date(week,6))){const wd=(new Date(day+'T12:00:00Z').getUTCDay()+6)%7;const closer=[4,4,2,2,2,3,3][wd];initialShifts[closer+'|'+day]=2}
+// Future draft examples demonstrate validation; completed attendance uses the fixed roster.
+initialShifts['5|2026-12-05']=2
+initialShifts['7|2026-12-05']=2
+initialShifts['7|2026-12-06']=0
 export const initialRequests=[
- {id:1,staff:1,type:'vacation',start:'2026-11-19',end:'2026-11-20',reason:'Family visit',status:'Pending',paid:false},
- {id:2,staff:2,type:'vacation',start:'2026-11-25',end:'2026-11-27',reason:'Travel',status:'Pending',paid:false},
- {id:3,staff:4,type:'sick',start:'2026-11-17',end:'2026-11-17',reason:'Medical appointment',status:'Pending',paid:true},
- {id:4,staff:3,type:'vacation',start:'2026-11-06',end:'2026-11-06',reason:'Personal day',status:'Approved',paid:false}
+ {id:1,staff:1,type:'vacation',start:'2026-12-02',end:'2026-12-03',reason:'Family visit',status:'Pending',paid:true},
+ {id:2,staff:2,type:'vacation',start:'2026-12-02',end:'2026-12-04',reason:'Travel',status:'Pending',paid:true},
+ {id:3,staff:4,type:'sick',start:'2026-12-01',end:'2026-12-01',reason:'Medical appointment',status:'Pending',paid:true},
+ ...staff.map(p=>{const day=range('2026-10-05','2026-10-09').find(d=>scheduledHours(p.id,d)>0);return {id:100+p.id,staff:p.id,type:'sick',start:day,end:day,reason:'Approved sick leave',status:'Approved',paid:true}}),
+ ...[1,3,7].map(id=>({id:200+id,staff:id,type:'unpaid',start:'2026-10-15',end:'2026-10-15',reason:'Personal leave without pay',status:'Approved',paid:false})),
+ ...[0,4].map(id=>({id:300+id,staff:id,type:'vacation',start:'2026-10-20',end:'2026-10-20',reason:'Approved vacation',status:'Approved',paid:true})),
+ {id:400,staff:1,type:'vacation',start:'2026-11-18',end:'2026-11-19',reason:'Approved paid vacation',status:'Approved',paid:true},
+ {id:401,staff:3,type:'unpaid',start:'2026-11-05',end:'2026-11-05',reason:'Approved unpaid personal leave',status:'Approved',paid:false}
 ]
-export const leaveAt=(requests,id,day)=>requests.find(r=>r.staff===id&&r.status==='Approved'&&r.start<=day&&day<=r.end)
-export const balance=(requests,id,type)=>staff[id][type]-requests.filter(r=>r.staff===id&&r.type===type&&r.status==='Approved').reduce((n,r)=>n+range(r.start,r.end).length,0)
-export const unavailable=(id,day)=>staff[id].unavailable.includes(range(monday(day),day).length-1)
+export const requestDays=r=>range(r.start,r.end).filter(day=>scheduledHours(r.staff,day)>0)
+export const leaveAt=(requests,id,day)=>scheduledHours(id,day)>0?requests.find(r=>r.staff===id&&r.status==='Approved'&&r.start<=day&&day<=r.end):undefined
+export const balance=(requests,id,type)=>type==='unpaid'?Infinity:staff[id][type]-requests.filter(r=>r.staff===id&&r.type===type&&r.status==='Approved'&&r.paid).reduce((n,r)=>n+requestDays(r).length,0)
+export const unavailable=(id,day)=>staff[id].unavailable.includes((new Date(day+'T12:00:00Z').getUTCDay()+6)%7)
+export const leaveSummary=(requests,id,month)=>requests.filter(r=>r.staff===id&&r.status==='Approved').reduce((sum,r)=>{const n=requestDays(r).filter(d=>d.startsWith(month)&&d<=asOf).length;sum[r.paid?'paid':'unpaid']+=n;return sum},{paid:0,unpaid:0})
 // The brief does not prescribe severity. These are explicit prototype policies.
 export const rulePolicy={
  minor:{level:'Error',guidance:'Under-18 shifts must end by 22:00.'},
@@ -59,37 +75,44 @@ export function validate(shifts,requests,start){
   if(total>40)add(rulePolicy.weekly.level,person.name+' is scheduled for '+total+' hours this week, '+(total-40)+' hours over the 40-hour limit. Reduce the hours or acknowledge this warning when publishing.',days.map(d=>person.id+'|'+d).filter(k=>shifts[k]!=null))
  }
  for(const day of days){
-  for(const [label,at,minimum] of [['Opening',450,1],['Lunch',720,3],['Closing',1260,1]]){
+  for(const [label,at,minimum] of [['Opening',540,1],['Lunch',720,3],['Closing',1260,1]]){
    const count=staff.filter(p=>{const t=templates[shifts[p.id+'|'+day]];return t&&t.start<=at&&at<t.end&&!leaveAt(requests,p.id,day)&&!unavailable(p.id,day)}).length
    if(count<minimum)add(rulePolicy.coverage.level,label+' coverage on '+day+' at '+time(at)+': '+count+' staff available; '+minimum+' required. Assign '+(minimum-count)+' more staff.',[day])
   }
  }
  return issues.sort((a,b)=>(a.level==='Error'?0:1)-(b.level==='Error'?0:1))
 }
-export function attendance(requests,id,day){
- const n=Number(day.slice(-2)), weekday=range(monday(day),day).length-1
- const historical=day>='2026-10-26'&&day<'2026-12-01', work=historical&&(id===0?weekday<6:(weekday+id)%7<5)
- const scheduled=work?8:0, leave=leaveAt(requests,id,day)
+function rawAttendance(requests,id,day){
+ const scheduled=scheduledHours(id,day)
+ if(day<rosterStart||day>asOf)return {status:'Not recorded',scheduled,actual:0}
+ if(holidays.includes(day))return {status:'Holiday',scheduled:0,actual:0}
+ if(!scheduled)return {status:'Off',scheduled:0,actual:0}
+ const leave=leaveAt(requests,id,day)
  if(leave)return {status:'Leave',scheduled,actual:0,paid:leave.paid,type:leave.type}
- if(day==='2026-11-11')return {status:'Holiday',scheduled:0,actual:0}
- if(!work)return {status:'Off',scheduled:0,actual:0}
- if((n+id*2)%19===0)return {status:'Absent',scheduled,actual:0}
- const late=(n+id)%8===0, clockIn=540+(late?15:0),clockOut=1020+((n+id)%9===0?60:0)
+ const n=Number(day.slice(-2)),late=(n+id)%11===0
+ if((n+id*3)%23===0)return {status:'Absent',scheduled,actual:0}
+ const clockIn=540+(late?15:0),clockOut=1020+((n+id)%13===0?60:0)
  return {status:late?'Late':'Present',scheduled,actual:(clockOut-clockIn)/60,clockIn,clockOut}
+}
+export function attendance(requests,id,day){
+ const r=rawAttendance(requests,id,day),previous=date(day,-1)
+ const prior=previous<monday(day)?0:range(monday(day),previous).reduce((n,d)=>n+rawAttendance(requests,id,d).actual,0)
+ return {...r,overtime:Math.max(0,prior+r.actual-40)-Math.max(0,prior-40)}
 }
 export const monthDays=month=>range(month+'-01',date(month+'-01',32).slice(0,7)+'-01').filter(d=>d.startsWith(month))
 export function payroll(requests,id,month){
- let base=0,overtime=0,paidLeave=0,unpaid=0
+ let base=0,overtime=0,paidLeave=0,unpaid=0,scheduled=0,absent=0,paidLeaveDays=0,unpaidDays=0
  for(const day of monthDays(month)){
   const record=attendance(requests,id,day)
+  if(day<=asOf){scheduled+=record.scheduled;if(record.status==='Absent')absent+=record.scheduled}
   const previous=date(day,-1)
   const prior=previous< monday(day)?0:range(monday(day),previous).reduce((n,d)=>n+attendance(requests,id,d).actual,0)
   const regular=Math.min(record.actual,Math.max(0,40-prior))
   base+=regular
   overtime+=record.actual-regular
-  if(record.status==='Leave'){if(record.paid)paidLeave+=record.scheduled;else unpaid+=record.scheduled}
+  if(record.status==='Leave'){if(record.paid){paidLeave+=record.scheduled;paidLeaveDays++}else{unpaid+=record.scheduled;unpaidDays++}}
  }
  const rate=staff[id].rate,tips=(base+overtime)*12,gross=(base+paidLeave)*rate+overtime*rate*1.5+tips,deductions=Math.round(gross*8)/100
- return {base,overtime,paidLeave,unpaid,rate,tips,gross,deductions,net:gross-deductions}
+ return {base,overtime,paidLeave,paidLeaveDays,unpaid,unpaidDays,scheduled,absent,rate,tips,gross,deductions,net:gross-deductions}
 }
 

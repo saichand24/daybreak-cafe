@@ -1,73 +1,29 @@
-# Daybreak Cafe
+# Daybreak Cafe - reconciled presentation data
 
-A React prototype for a café manager to schedule shifts, review attendance, manage leave and prepare payslips.
+## Setup
 
-## Run locally
+Run npm ci, npm run dev. Run npm test and npm run build to validate and produce dist. The static build works on GitHub Pages with relative asset paths.
 
-Requires Node.js 22+ and npm. Run `npm ci`, then `npm run dev` and open the URL printed by Vite. Use `npm test` for the model checks and `npm run build` for the static production bundle.
+## Reporting periods
 
-## Home dashboard
+All records are fictional. The demo reporting date is 23 November 2026, chosen for the presentation. October is complete. November attendance is available through the 23rd; later dates are explicitly Not recorded. October is the default released payslip month. November payslips are unavailable until that payroll period closes. Attendance and payslips have independent month selectors.
 
-Home opens on the seeded demo date, November 17, 2026. Roster, full planning-week checks, pending requests, and publish status update from the same state as the four modules. The Home check summary opens the same week and moves keyboard focus to the detailed checks. On phones the summary precedes the roster.
+## One recorded roster
 
-## Try the cross-module workflow
+Every historical scheduled hour comes from the same recorded 09:00-17:00 roster displayed in Schedule. Maya works Monday-Saturday. Other staff have two weekly offs staggered across the week; Amara and Noah have weekends off. This preserves staffing on weekends. Clock records include explicit 15-minute late arrivals, absences and occasional extra hours. Clock-out never exceeds 18:00 in the recorded fixtures, including for minors. Holidays are October 2 and November 11 in this mock dataset; these have no scheduled hours. This is a demo calendar and payroll policy, not an Indian statutory payroll implementation.
 
-1. In **Schedule**, drag a template into a cell or select the cell to assign a shift. Try placing Closing on an under-18 staff member or on the day before an Opening shift. Review the issue list and publish dialog, then fix the blocking conflicts and acknowledge the warnings.
-2. In **Leave**, review Leo's request to see the over-balance warning. Approve Amara's unpaid vacation for November 19–20. It deducts two vacation days.
-3. In **Schedule**, look for Amara's leave overlay. In **Attendance**, choose Amara and open November 19 to see the scheduled hours and unpaid leave status.
-4. In **Payslips**, choose Amara and check the unpaid hours excluded from earnings. Switch to Maya to show weekly overtime. Use **Print / save PDF** and choose **Save as PDF** in the print dialog.
+Opening coverage is sampled at 09:00, lunch at 12:00 and closing at 21:00. The future draft includes assigned closing coverage.
 
-## Design rationale
+The scheduler opens on next week, November 30-December 6. That draft deliberately includes minor/rest/staffing/weekly-hour examples. Its shift templates can differ from recorded shifts because it is a future plan. Dates through November 23 are locked; changing a future draft cannot rewrite completed attendance or October pay.
 
-The schedule is the primary working surface. Sticky staff identities preserve context during horizontal scrolling, compact shift cards carry a label and a time range, and empty cells support both drag-and-drop and click or keyboard assignment. Each warning or error has a written explanation. The publish dialog repeats the actionable checks and requires a deliberate acknowledgment when warnings remain.
+## Leave policy
 
-Attendance keeps month and staff controls together. Text labels duplicate all status colors, and the detail dialog keeps clock times and hour comparisons out of the calendar grid. The leave review shows duration and balance before approval, including any assigned shifts that would need reassignment. Payslips expose the hours and rate behind each earnings line and use a dedicated print stylesheet.
+Sick and vacation have separate opening balances at October 1. Approved paid leave consumes only scheduled working days from its selected balance. Unpaid leave has its own type and does not consume paid balances. Weekly offs and holidays do not count as leave days. The mock requests include paid sick leave, paid vacation and explicitly unpaid personal leave. Amara's paid request is December 2-3, both working days. Leo asks for December 2-4 against two vacation days; approval is blocked and an explanation appears below the action. Usage on Leave covers October and November through the reporting date. Opening balances less approved paid working days reconcile to available balances.
 
-## Mock rules and architecture
+## Payroll and attendance
 
-- Eight staff members, including two minors. Fixed shift templates allow one assignment per person per day. Coverage is checked at three sample times. Time-zone-neutral dates and minute offsets keep the demo deterministic.
-- A closing shift after 22:00 for a minor, rest under eight hours and a shift during approved leave block publishing. Unavailability, undercoverage and weeks over 40 scheduled hours warn. Published status is a local prototype state.
-- Approved leave uses calendar days and consumes the selected balance regardless of pay treatment. A request above the balance or overlapping existing approved leave is prevented. The scheduler overlay and attendance derive from the same request list.
-- Historical scheduled and actual hours are seeded independently from draft assignments. Payroll reads effective attendance, allocates hours above 40 per Monday–Sunday week at 1.5×, and includes earlier days in the same week when a pay period starts midweek. Paid leave pays scheduled hours at base rate and does not count toward worked-hour overtime. Tips use a mock rate of ₹12 per worked hour, and withholding is illustrative at 8%. Amounts use INR and Indian digit grouping. The demo uses mock hourly rates of ₹160–₹230.
-- Mock schedule, requests and publish state persist in browser local storage. Clearing the site's data resets the demo. No backend or real payroll integration is required.
-- Optional stretch included: copying the previous week's assignments with confirmation.
+Both read the same clock records and approved leave. Attendance shows scheduled, actual and weekly overtime hours, with hours/minutes displayed instead of decimal hours. Overtime is actual work over 40 hours in a Monday-Sunday week, paid at 1.5x, including earlier days when a week crosses a month boundary. Paid leave does not count toward worked-hour overtime. Unpaid scheduled hours earn no pay; the payslip displays days, hours and the value not earned, as a zero-value explanatory line to avoid double deduction. Absences and lateness similarly do not earn worked pay. Tips are mock INR 12 per worked hour and deductions are illustrative 8% withholding. Hourly rates are INR 160-230. Holidays have no paid-hours allowance in this mock policy.
 
-## 30-minute walkthrough
+## Persistence and tests
 
-| Time | Topic |
-| --- | --- |
-| 0–4 min | Manager workflow, design file, and four-module navigation |
-| 4–12 min | Drag assignment, keyboard alternative, validation, publish policy |
-| 12–19 min | Attendance detail, leave approval, and cross-module state |
-| 19–25 min | Weekly overtime calculation, unpaid leave, and print preview |
-| 25–30 min | React structure, mock data trade-offs, and discussion |
-
-[Editable Figma design](https://www.figma.com/design/ViyTUF5MpODuStLphrNIfS)
-
-## Usability fixes
-
-Dialogs announce their titles and restore focus. Schedule checks link to the affected cell or day. On phones, the week grid has a scroll cue and a narrower sticky staff column, and Attendance uses a readable date list. Months with no records show an explicit empty state.
-
-## Final interface cleanup
-
-The page title and selected sidebar destination provide location. The duplicate breadcrumb, sidebar Workspace heading and repeated subtitles were removed. Schedule retains actionable error and warning counts. Home carries the sample-data notice and a compact weekly review card. It distinguishes blocking errors, warnings, clear checks and an already published week. Plain CAFE branding is consistent across the interface and Figma.
-
-[Design decisions and walkthrough in FigJam](https://www.figma.com/board/3XGSf7DGzkKufBZ7cN3U4m) includes 24 sections with example screens.
-
-## Review fixes - 19 November 2026
-
-Home, Schedule and publish review consume the same `validate` result. Errors appear first and every check names a date and a corrective action. The minor rule is a blocking error, not an acknowledged warning. Warning acknowledgment cannot bypass an error. After assignment, a live status message announces the affected check. Changes to a Sunday or Monday invalidate both weeks whose rest checks may change. Moving a shift also invalidates its source week.
-
-`rulePolicy` documents the prototype severity policy; it is a design choice within the brief, not a claim about statutory employment rules. `canPublish` is the shared publish gate. Eight model tests cover weekly limits, rest across weeks, exact rule boundaries, publish gating, leave balances and payroll consistency.
-
-### Repeatable rule demonstration
-
-Start in a fresh browser profile to use the seeded mock state. November 16-22 has 2 blocking errors and 6 warnings. Maya is scheduled for 48 hours. Select Isla on November 21 and replace Closing with Midday, then replace Jules's November 22 Opening with Midday. Both blocking errors clear and the extra lunch staff resolves the coverage gap, leaving 5 warnings. Publish stays disabled until those warnings are acknowledged. Remove Maya's Saturday shift to reach 40 hours and clear her weekly excess warning, or use Load 48-hour example to restore it.
-
-### Leave demonstration
-
-Before approval, Amara has 8 vacation days and net pay of INR 30,253.51 for November. Approve her November 19-20 unpaid request. Her balance becomes 6, both dates appear as leave, and payroll excludes 8 historically scheduled unpaid hours. Net pay becomes INR 28,766.79. The request consumes two calendar days, but only one of those dates has historical scheduled work. The affected published week returns to Draft. Leo's 3-day request against a 2-day balance cannot be approved.
-
-### Validation limits
-
-The revised production bundle was checked in a desktop browser and at a phone-sized viewport. Rule correction, warning acknowledgment, publishing, Home navigation and unpaid leave propagation were exercised through the UI. Automated tests pass. This is an expert and functional review with mock data, not participant usability research. Full screen-reader, physical-phone and payroll-compliance validation remain outside this check.
+The reconciled dataset uses a new local-storage namespace, so stale demo records cannot mix with the new fixtures. Nine automated tests audit all eight staff, every October date and every November date through the 23rd, roster/clock agreement, leave on working days, weekly overtime boundaries, pay arithmetic and publish gating. Full real-device and screen-reader validation is separate from these data checks.
