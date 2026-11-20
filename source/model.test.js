@@ -27,7 +27,7 @@ test('attendance overtime and payslip hours reconcile for every employee and mon
  assert.equal(pay.overtime,rows.reduce((n,r)=>n+r.overtime,0))
  assert.equal(pay.paidLeave,rows.filter(r=>r.status==='Leave'&&r.paid).reduce((n,r)=>n+r.scheduled,0))
  assert.equal(pay.unpaid,rows.filter(r=>r.status==='Leave'&&!r.paid).reduce((n,r)=>n+r.scheduled,0))
- assert.equal(pay.gross,(pay.base+pay.paidLeave+pay.unpaid+pay.absent)*pay.rate+pay.overtime*pay.rate*1.5+pay.tips)
+ assert.equal(Math.round(pay.gross*100),Math.round(((pay.base+pay.paidLeave+pay.unpaid+pay.absent)*pay.rate+pay.overtime*pay.rate*1.5+pay.tips)*100))
  assert.equal(pay.net,Math.round((pay.gross-pay.deductions)*100)/100)
  }
 })
@@ -100,7 +100,7 @@ test('mixed paid and LOP days reconcile with attendance, usage and payslip',()=>
  assert.equal(pay.unpaid,(requested.length-2)*8)
  assert.equal(pay.unpaidDays,requested.length-2)
  assert.deepEqual(m.leaveSummary(approved,2,'2026-10'),{paid:2,unpaid:requested.length-2})
- assert.equal(pay.gross,(pay.base+16+pay.unpaid+pay.absent)*pay.rate+pay.overtime*pay.rate*1.5+pay.tips)
+ assert.equal(Math.round(pay.gross*100),Math.round(((pay.base+16+pay.unpaid+pay.absent)*pay.rate+pay.overtime*pay.rate*1.5+pay.tips)*100))
  const overlap=approved.concat({...request,id:503,start:requested[0],end:requested[0]})
  assert.throws(()=>m.approveLeave(overlap,503),/overlap/)
  const offDay=m.monthDays('2026-10').find(d=>m.unavailable(2,d));const off=before.concat({...request,id:504,start:offDay,end:offDay})
@@ -114,7 +114,7 @@ test('all demo weeks meet coverage, weekoff, leave and rest rules with approved 
   for(const p of m.staff){
    const assignments=m.range(start,m.date(start,6)).map(day=>({day,t:m.shiftTemplate(m.initialShifts[p.id+'|'+day],day)})).filter(x=>x.t)
    assert.ok(assignments.reduce((n,x)=>n+(x.t.end-x.t.start)/60,0)<=(m.range(start,m.date(start,6)).some(d=>/2026-(10|11)/.test(d))?48:40),p.name+' '+start)
-   for(const {day,t} of assignments){assert.equal(m.unavailable(p.id,day),false);assert.equal(m.leaveAt(m.initialRequests,p.id,day),undefined);assert.ok(t.start>=(day.startsWith('2026-11')?360:540));if(p.minor)assert.ok(t.end<=1320)}
+   for(const {day,t} of assignments){assert.equal(m.unavailable(p.id,day),false);assert.equal(m.leaveAt(m.initialRequests,p.id,day),undefined);assert.ok(t.start>=360);if(p.minor)assert.ok(t.end<=1320)}
   }
   for(const day of m.range(start,m.date(start,6)).filter(d=>!m.holidays.includes(d)))for(const slot of m.staffingSlotsForDay(day))for(let at=slot.start;at<slot.end;at+=30){
    const count=m.staff.filter(p=>{const t=m.shiftTemplate(m.initialShifts[p.id+'|'+day],day);return t&&t.start<=at&&t.end>at}).length
@@ -262,7 +262,7 @@ test('payslips distinguish absence from unpaid leave and exclude both from worke
   assert.equal(pay.absent,rows.filter(r=>r.status==='Absent').reduce((n,r)=>n+r.scheduled,0))
   assert.equal(pay.unpaidDays,rows.filter(r=>r.status==='Leave'&&!r.paid&&!r.future).length)
   for(const r of rows.filter(r=>r.status==='Absent'))assert.equal(r.actual,0)
-  assert.equal(pay.gross,(pay.base+pay.paidLeave+pay.unpaid+pay.absent)*pay.rate+pay.overtime*pay.rate*1.5+pay.tips)
+  assert.equal(Math.round(pay.gross*100),Math.round(((pay.base+pay.paidLeave+pay.unpaid+pay.absent)*pay.rate+pay.overtime*pay.rate*1.5+pay.tips)*100))
  }
  const amara=m.payroll(m.initialRequests,1,'2026-10');assert.ok(amara.absentDays>0&&amara.unpaidDays>0)
 })
@@ -280,7 +280,7 @@ test('payslips distinguish absence from unpaid leave and exclude both from worke
   for(const p of m.staff)for(const month of ['2026-10','2026-11']){
    const pay=m.payroll(m.initialRequests,p.id,month)
    assert.equal(pay.unpaidDeduction,(pay.unpaid+pay.absent)*pay.rate)
-   assert.equal(pay.gross-pay.unpaidDeduction,pay.earnedGross)
+   assert.equal(Math.round((pay.gross-pay.unpaidDeduction)*100),Math.round(pay.earnedGross*100))
    assert.equal(pay.deductions,pay.unpaidDeduction+pay.withholding)
    assert.equal(pay.net,Math.round((pay.earnedGross-pay.withholding)*100)/100)
    assert.equal(Math.round((pay.gross-pay.deductions)*100)/100,pay.net)
@@ -346,8 +346,8 @@ test('payslip base hours equal Attendance worked hours minus overtime and absenc
   assert.equal(pay.basePay,(totals.worked-totals.overtime)*pay.rate)
   assert.equal(pay.totalUnpaid,totals.unpaidLeave+totals.absent)
   assert.equal(pay.totalUnpaidDays,totals.unpaidLeaveDays+totals.absentDays)
-  assert.equal(pay.overtimePay,totals.overtime*pay.rate*1.5)
-  assert.equal(pay.gross,pay.basePay+pay.overtimePay+pay.paidLeave*pay.rate+pay.tips+pay.unpaidDeduction)
+  assert.equal(pay.overtimePay,Math.round(totals.overtime*pay.rate*1.5*100)/100)
+  assert.equal(Math.round(pay.gross*100),Math.round((pay.basePay+pay.overtimePay+pay.paidLeave*pay.rate+pay.tips+pay.unpaidDeduction)*100))
   assert.equal(Math.round((pay.gross-pay.deductions)*100)/100,pay.net)
   assert.equal(pay.net,Math.round((pay.earnedGross-pay.withholding)*100)/100)
  }
@@ -401,4 +401,24 @@ test('runtime Attendance progresses past the old fixed date, keeps future leave 
  }
  assert.equal(m.date(m.todayInCafe(new Date('2026-12-01T00:00:00Z')),-1),'2026-11-30')
  assert.equal(m.attendance(m.initialRequests,0,'2026-11-25').status,'Not recorded')
+})
+
+test('all months use the same eight-hour shift times and recorded clocks end by 23:00',()=>{
+ for(const day of ['2026-09-28','2026-10-01','2026-11-01','2026-12-01','2027-01-01'])assert.deepEqual(m.templatesForDay(day).slice(0,3).map(t=>[t.start,t.end]),[[360,840],[660,1140],[900,1380]])
+ for(const p of m.staff)for(const day of m.range('2026-10-01',m.asOf)){const r=m.attendance(m.initialRequests,p.id,day);if(r.clockOut!=null)assert.ok(r.clockOut<=1380)}
+})
+test('closing-to-opening normalization preserves working days, per-day staffing and weekly hours',()=>{
+ const source={'0|2026-10-03':2,'0|2026-10-04':0,'1|2026-10-04':1,'2|2026-10-04':2},next=m.normalizeShiftRest(source)
+ assert.deepEqual(Object.keys(next).sort(),Object.keys(source).sort())
+ assert.equal(next['0|2026-10-04'],1);assert.equal(next['1|2026-10-04'],0)
+ for(const day of ['2026-10-03','2026-10-04'])for(const type of [0,1,2])assert.equal(Object.keys(next).filter(key=>key.endsWith(day)&&next[key]===type).length,Object.keys(source).filter(key=>key.endsWith(day)&&source[key]===type).length)
+ assert.deepEqual(source,{'0|2026-10-03':2,'0|2026-10-04':0,'1|2026-10-04':1,'2|2026-10-04':2})
+ assert.deepEqual(m.normalizeShiftRest(next),next)
+})
+
+test('stored default December weekends gain midday coverage without adding working days',()=>{
+ const day='2026-12-05',available=m.staff.filter(p=>!m.unavailable(p.id,day)),preferred=[4,2,7,3,1,0].find(id=>available.some(p=>p.id===id)),old=Object.fromEntries(available.map(p=>[p.id+'|'+day,p.id===preferred?2:0])),next=m.normalizeShiftRest(old)
+ assert.deepEqual(Object.keys(next).sort(),Object.keys(old).sort())
+ assert.ok(Object.values(next).includes(1));assert.equal(Object.values(next).filter(type=>type===2).length,1)
+ for(const slot of m.staffingSlotsForDay(day))for(let at=slot.start;at<slot.end;at+=30)assert.ok(available.filter(p=>{const t=m.shiftTemplate(next[p.id+'|'+day],day);return t.start<=at&&at<t.end}).length>=slot.minimum)
 })

@@ -9,7 +9,7 @@ const rupees = new Intl.NumberFormat('en-IN', {style:'currency',currency:'INR'})
 const money = n => rupees.format(n)
 const hrs=n=>{const mins=Math.round(n*60);return Math.floor(mins/60)+'h'+(mins%60?' '+mins%60+'m':'')}
 const initials=p=>p.name.split(' ').map(n=>n[0]).join('')
-function saved(key,initial){const [value,set]=useState(()=>{try{return JSON.parse(localStorage.getItem('daybreak-november-minor32-v10-'+key))??initial}catch{return initial}});useEffect(()=>{localStorage.setItem('daybreak-november-minor32-v10-'+key,JSON.stringify(value))},[key,value]);return [value,set]}
+function saved(key,initial){const [value,set]=useState(()=>{try{const stored=JSON.parse(localStorage.getItem('daybreak-november-minor32-v10-'+key));if(stored!=null)return stored;if(key==='shifts-unified-times-v1'){const prior=JSON.parse(localStorage.getItem('daybreak-november-minor32-v10-shifts'));return prior?M.normalizeShiftRest(prior):initial};return initial}catch{return initial}});useEffect(()=>{localStorage.setItem('daybreak-november-minor32-v10-'+key,JSON.stringify(value))},[key,value]);return [value,set]}
 function Avatar({p}){return <span className={'avatar a'+p.id%4}>{initials(p)}</span>}
 function Dialog({title,close,children,className=''}){
  const ref=useRef(),titleId=useId()
@@ -26,7 +26,7 @@ function Dialog({title,close,children,className=''}){
 function App(){
  const [demoDay,setToday]=useState(()=>M.todayInCafe())
  const [section,go]=useState('Home'),[start,setStart]=useState(M.week),[attendanceMonth,setAttendanceMonth]=useState('2026-11'),[payMonth,setPayMonth]=useState('2026-10'),[id,setId]=useState(0)
- const [shifts,setShifts]=saved('shifts',M.initialShifts),[requests,setRequests]=saved('leave-manager-review-v4',M.initialRequests),[published,setPublished]=saved('published',{})
+ const [shifts,setShifts]=saved('shifts-unified-times-v1',M.initialShifts),[requests,setRequests]=saved('leave-manager-review-v4',M.initialRequests),[published,setPublished]=saved('published',{})
  const [weekOffs,setWeekOffs]=saved('week-off-overrides',{}),[statusTool,setStatusTool]=useState(null)
  const [overlay,setOverlay]=useState(true),[modal,open]=useState(null),[ack,setAck]=useState(false),[note,setNote]=useState(''),[drag,setDrag]=useState(null),[focusChecks,setFocusChecks]=useState(false)
  const month=section==='Payslips'?payMonth:attendanceMonth,setMonth=section==='Payslips'?setPayMonth:setAttendanceMonth
