@@ -39,3 +39,7 @@ Rates are illustrative INR 160-230/hour. Tips are INR 12 per worked hour. Deduct
 ## Persistence and checks
 
 The clean-roster storage namespace resets older inconsistent demo schedules and requests once. Subsequent manager edits persist locally. Fourteen automated tests verify all employees and all demo weeks, half-hour coverage, availability, leave, weekly limits, minor/rest rules, overtime boundaries, monthly reconciliation, past-date edits, pending requests, LOP splits and publish gating. Default leave requests are not approved during browser verification.
+
+## Monthly hours detail
+
+Click Worked hours in Attendance to inspect every date for the selected employee and month. The dialog lists scheduled shift, status, actual clock-in/out, regular hours, weekly overtime and worked hours. Daily values and the footer sum to the same total as the card. Paid leave, unpaid LOP and absences are summarized separately and excluded from worked hours. Future dates are marked Not recorded and excluded from totals. Overtime still uses the Monday-Sunday weekly rule across month boundaries. The Daybreak logo is a keyboard-accessible button returning to Home. Fifteen model tests include monthly reconciliation for all eight employees and Sofia's November total of 120h 30m.

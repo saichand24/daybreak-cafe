@@ -141,3 +141,10 @@ export function payroll(requests,id,month,shifts=initialShifts){
  return {base,overtime,paidLeave,paidLeaveDays,unpaid,unpaidDays,scheduled,absent,rate,tips,gross,deductions,net:gross-deductions}
 }
 
+
+export function attendanceTotals(records){
+ const rows=records.filter(r=>r.status!=='Not recorded')
+ const sum=(filter,field)=>rows.filter(filter).reduce((n,r)=>n+Math.round((r[field]||0)*60),0)/60
+ const worked=sum(()=>true,'actual'),overtime=sum(()=>true,'overtime')
+ return {worked,overtime,regular:worked-overtime,paidLeave:sum(r=>r.status==='Leave'&&r.paid,'scheduled'),unpaidLeave:sum(r=>r.status==='Leave'&&!r.paid,'scheduled'),absent:sum(r=>r.status==='Absent','scheduled'),paidLeaveDays:rows.filter(r=>r.status==='Leave'&&r.paid).length,unpaidLeaveDays:rows.filter(r=>r.status==='Leave'&&!r.paid).length,absentDays:rows.filter(r=>r.status==='Absent').length}
+}

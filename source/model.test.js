@@ -135,3 +135,16 @@ test('five upcoming requests remain pending, including two unpaid requests',()=>
  assert.equal(pending.length,5);assert.equal(pending.filter(r=>!r.paid).length,2)
  for(const r of pending)for(const d of m.requestDays(r))assert.ok(m.scheduledHours(r.staff,d)>0)
 })
+test('monthly hours breakdown reconciles daily rows, payroll and excluded time for every employee',()=>{
+ for(const p of m.staff)for(const month of ['2026-10','2026-11']){
+  const rows=m.monthDays(month).map(day=>({day,...m.attendance(m.initialRequests,p.id,day)})),totals=m.attendanceTotals(rows),pay=m.payroll(m.initialRequests,p.id,month)
+  assert.equal(totals.worked,rows.reduce((n,r)=>n+r.actual,0))
+  assert.equal(totals.regular+totals.overtime,totals.worked)
+  assert.equal(totals.regular,pay.base);assert.equal(totals.overtime,pay.overtime)
+  assert.equal(totals.paidLeave,pay.paidLeave);assert.equal(totals.unpaidLeave,pay.unpaid);assert.equal(totals.absent,pay.absent)
+  assert.equal(rows.reduce((n,r)=>n+r.actual-r.overtime,0),totals.regular)
+ }
+ const sofia=m.monthDays('2026-11').map(day=>({day,...m.attendance(m.initialRequests,3,day)}))
+ assert.equal(m.attendanceTotals(sofia).worked,120.5)
+ assert.deepEqual(m.attendanceTotals([{status:'Not recorded',scheduled:8,actual:0,overtime:0}]),{worked:0,overtime:0,regular:0,paidLeave:0,unpaidLeave:0,absent:0,paidLeaveDays:0,unpaidLeaveDays:0,absentDays:0})
+})
