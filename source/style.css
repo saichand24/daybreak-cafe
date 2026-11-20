@@ -41,3 +41,5 @@
 @media(max-width:760px){.home-grid>div{display:contents}.home-checks{grid-row:1}}
 
 .period-note{font-size:12px;margin:0 0 16px;line-height:1.6}.not.recorded,.not-recorded{background:#f2f3ee;color:#586963}.content:has(.cal) .stats{grid-template-columns:repeat(3,minmax(0,1fr))}@media(max-width:650px){.content:has(.cal) .stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+.content:has(.home-grid) > .stats{grid-template-columns:repeat(3,minmax(0,1fr))}@media(max-width:650px){.content:has(.home-grid) > .stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
