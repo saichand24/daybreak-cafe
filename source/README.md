@@ -12,19 +12,19 @@ The fictional reporting date is 23 November 2026. October attendance and payslip
 
 ## Clean roster and staffing policy
 
-All eight employees have five available workdays per normal week, at eight scheduled hours per day. Weekly offs are staggered. Maya, Amara and Noah are off Saturday/Sunday; Leo and Jules Monday/Tuesday; Sofia Tuesday/Wednesday; Isla Wednesday/Thursday; Finn Thursday/Friday.
+Outside October, all eight employees have five available workdays per normal week, at eight scheduled hours per day. Weekoffs are staggered. Maya, Amara and Noah are off Saturday/Sunday; Leo and Jules Monday/Tuesday; Sofia Tuesday/Wednesday; Isla Wednesday/Thursday; Finn Thursday/Friday.
 
 Templates are Opening 09:00-17:00, Midday 10:00-18:00 and Closing 13:00-21:00. A consistent adult closing assignment is selected from available staff. Both minors have opening assignments. Approved leave and weekly offs receive no shift. Sick and unpaid historical examples are staggered so they do not create staffing gaps.
 
 Required staffing is 1 from 09:00-11:00, 3 from 11:00-15:00, 2 from 15:00-17:00 and 1 from 17:00-21:00. Coverage is checked every 30 minutes, including slot boundaries. October 2 and November 11 are closed mock holidays. These hours and staffing levels are documented design assumptions, not legal requirements.
 
-Every default week from September 28 through December 6 passes all checks with no errors or warnings. The 48-hour example is opt-in and intentionally creates warnings. Restore planned week replaces that selected week with the clean rota for current approved leave; review its checks because several simultaneous approvals may require extra staffing.
+November and December default weeks have no errors or warnings. October has only acknowledged-policy weekly overtime warnings; no leave, weekoff, rest, minor or staffing issues. The 48-hour example is opt-in and intentionally creates warnings. Restore planned week replaces that selected week with the clean rota for current approved leave; review its checks because several simultaneous approvals may require extra staffing.
 
 ## Editable schedule and recorded attendance
 
 All dates can be edited, copied and published. There is no date lock. Validation runs for every selected week. Edits update scheduled hours in attendance, while recorded clock times remain unchanged. Payroll follows recorded actual hours, approved paid leave and weekly overtime, not a rewritten historical clock record. The Home Week status card was removed; the selected schedule still shows Draft or Published.
 
-The mock clocks use each employee's rostered shift start/end, occasional 15-minute lateness, absence and an extra hour. Actual hours above 40 in a Monday-Sunday week earn 1.5x, including weeks crossing month boundaries. Paid leave does not count as worked overtime. Minors' default clocks end by 18:00.
+The mock clocks use each employee's rostered shift start/end, occasional 15-minute lateness, absence and an extra hour. Actual hours above 40 in a Monday-Sunday week earn 1.5x, including weeks crossing month boundaries. Paid leave does not count as worked overtime. Minors' default shifts are opening or midday; their mock clock-outs remain before 22:00.
 
 ## Leave and LOP
 
@@ -38,8 +38,14 @@ Rates are illustrative INR 160-230/hour. Tips are INR 12 per worked hour. Deduct
 
 ## Persistence and checks
 
-The clean-roster storage namespace resets older inconsistent demo schedules and requests once. Subsequent manager edits persist locally. Fourteen automated tests verify all employees and all demo weeks, half-hour coverage, availability, leave, weekly limits, minor/rest rules, overtime boundaries, monthly reconciliation, past-date edits, pending requests, LOP splits and publish gating. Default leave requests are not approved during browser verification.
+The October-six storage namespace resets older inconsistent demo schedules and requests once. Subsequent manager edits persist locally. Sixteen automated tests verify all employees and all demo weeks, half-hour coverage, availability, leave, weekly limits, minor/rest rules, overtime boundaries, monthly reconciliation, past-date edits, pending requests, LOP splits and publish gating. Default leave requests are not approved during browser verification.
 
 ## Monthly hours detail
 
-Click Worked hours in Attendance to inspect every date for the selected employee and month. The dialog lists scheduled shift, status, actual clock-in/out, regular hours, weekly overtime and worked hours. Daily values and the footer sum to the same total as the card. Paid leave, unpaid LOP and absences are summarized separately and excluded from worked hours. Future dates are marked Not recorded and excluded from totals. Overtime still uses the Monday-Sunday weekly rule across month boundaries. The Daybreak logo is a keyboard-accessible button returning to Home. Fifteen model tests include monthly reconciliation for all eight employees and Sofia's November total of 120h 30m.
+Click Worked hours in Attendance to inspect every date for the selected employee and month. The dialog lists scheduled shift, status, actual clock-in/out, regular hours, weekly overtime and worked hours. Daily values and the footer sum to the same total as the card. Paid leave, unpaid LOP and absences are summarized separately and excluded from worked hours. Future dates are marked Not recorded and excluded from totals. Overtime still uses the Monday-Sunday weekly rule across month boundaries. The Daybreak logo is a keyboard-accessible button returning to Home. Sixteen model tests include monthly reconciliation for all eight employees and Sofia's November total of 120h 30m.
+
+## October 2 / 2 / 2 rota
+
+The manager explicitly chose to retain eight staff and allow overtime / rebalance weekoffs. All 30 open October days have exactly 2 Opening (09:00-17:00), 2 Midday (10:00-18:00), and 2 Closing (13:00-21:00) assignments: 180 assignments total. October 2 remains a closed holiday with no assignments. All 13 existing approved leave days are preserved. October weekoffs are date-specific and come from the rebalanced rota, rather than fixed recurring weekday offs. A constraint search respects approved leave, limits each employee to at most six shifts per Monday-Sunday week (including September/November boundary days), and avoids more than six consecutive workdays. All closing slots are staffed by adults. Dates without work, approved leave or a holiday are marked Weekoff.
+
+October weeks over 40 scheduled hours deliberately produce the required warning and need acknowledgment before publishing. Actual weekly overtime is calculated from the new clock fixtures and paid at 1.5x. October attendance, daily hours breakdowns and payslips are recalculated from those fixtures. Existing November/December shift patterns remain the normal five-day policy; a week crossing October and November uses the same weekly overtime calculation. Exact 2/2/2 staffing is checked separately for October in addition to continuous coverage checks. Pending leave requests remain manager-controlled.

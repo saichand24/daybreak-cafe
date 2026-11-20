@@ -94,25 +94,26 @@ test('mixed paid and LOP days reconcile with attendance, usage and payslip',()=>
  const request={id:502,staff:2,type:'vacation',start:'2026-10-07',end:'2026-10-11',status:'Pending',paid:true}
  const before=m.initialRequests.filter(r=>r.id!==102).concat(request)
  const approved=m.approveLeave(before,502),pay=m.payroll(approved,2,'2026-10')
- assert.equal(m.requestDays(request).length,5) // Leo works Wednesday through Sunday.
+ const requested=m.requestDays(request);assert.ok(requested.length>2)
  assert.equal(m.balance(approved,2,'vacation'),0)
  assert.equal(pay.paidLeave,16)
- assert.equal(pay.unpaid,24)
- assert.equal(pay.unpaidDays,3)
- assert.deepEqual(m.leaveSummary(approved,2,'2026-10'),{paid:2,unpaid:3})
+ assert.equal(pay.unpaid,(requested.length-2)*8)
+ assert.equal(pay.unpaidDays,requested.length-2)
+ assert.deepEqual(m.leaveSummary(approved,2,'2026-10'),{paid:2,unpaid:requested.length-2})
  assert.equal(pay.gross,(pay.base+16)*pay.rate+pay.overtime*pay.rate*1.5+pay.tips)
- const overlap=approved.concat({...request,id:503,start:'2026-10-08',end:'2026-10-08'})
+ const overlap=approved.concat({...request,id:503,start:requested[0],end:requested[0]})
  assert.throws(()=>m.approveLeave(overlap,503),/overlap/)
- const off=before.concat({...request,id:504,start:'2026-10-12',end:'2026-10-13'})
+ const offDay=m.monthDays('2026-10').find(d=>m.unavailable(2,d));const off=before.concat({...request,id:504,start:offDay,end:offDay})
  assert.throws(()=>m.approveLeave(off,504),/no scheduled working days/)
 })
 
-test('all ten demo weeks meet coverage, availability, leave, hours and rest rules',()=>{
+test('all demo weeks meet coverage, weekoff, leave and rest rules with approved October overtime',()=>{
  for(let start=m.rosterStart;start<=m.week;start=m.date(start,7)){
-  assert.deepEqual(m.validate(m.initialShifts,m.initialRequests,start),[],start)
+  const issues=m.validate(m.initialShifts,m.initialRequests,start)
+  assert.ok(issues.every(i=>i.level==='Warning'&&i.label.includes('over the 40-hour limit')),start)
   for(const p of m.staff){
    const assignments=m.range(start,m.date(start,6)).map(day=>({day,t:m.templates[m.initialShifts[p.id+'|'+day]]})).filter(x=>x.t)
-   assert.ok(assignments.reduce((n,x)=>n+(x.t.end-x.t.start)/60,0)<=40,p.name+' '+start)
+   assert.ok(assignments.reduce((n,x)=>n+(x.t.end-x.t.start)/60,0)<=(m.range(start,m.date(start,6)).some(d=>d.startsWith('2026-10'))?48:40),p.name+' '+start)
    for(const {day,t} of assignments){assert.equal(m.unavailable(p.id,day),false);assert.equal(m.leaveAt(m.initialRequests,p.id,day),undefined);assert.ok(t.start>=540);if(p.minor)assert.ok(t.end<=1320)}
   }
   for(const day of m.range(start,m.date(start,6)).filter(d=>!m.holidays.includes(d)))for(const slot of m.staffingSlots)for(let at=slot.start;at<slot.end;at+=30){
@@ -147,4 +148,18 @@ test('monthly hours breakdown reconciles daily rows, payroll and excluded time f
  const sofia=m.monthDays('2026-11').map(day=>({day,...m.attendance(m.initialRequests,3,day)}))
  assert.equal(m.attendanceTotals(sofia).worked,120.5)
  assert.deepEqual(m.attendanceTotals([{status:'Not recorded',scheduled:8,actual:0,overtime:0}]),{worked:0,overtime:0,regular:0,paidLeave:0,unpaidLeave:0,absent:0,paidLeaveDays:0,unpaidLeaveDays:0,absentDays:0})
+})
+
+test('October has exactly two of each shift on every open day and closes October 2',()=>{
+ let assignments=0
+ for(const day of m.monthDays('2026-10')){
+  const ids=m.staff.filter(p=>m.initialShifts[p.id+'|'+day]!=null).map(p=>p.id)
+  if(day==='2026-10-02'){assert.equal(ids.length,0);for(const p of m.staff)assert.equal(m.attendance(m.initialRequests,p.id,day).status,'Holiday');continue}
+  assert.equal(ids.length,6,day);assignments+=ids.length
+  for(const type of [0,1,2])assert.equal(ids.filter(id=>m.initialShifts[id+'|'+day]===type).length,2,day+' '+m.templates[type].name)
+  for(const p of m.staff){const assigned=ids.includes(p.id),leave=m.leaveAt(m.initialRequests,p.id,day);assert.ok(assigned||leave||m.unavailable(p.id,day),p.name+' '+day);if(leave||m.unavailable(p.id,day))assert.equal(assigned,false)}
+ }
+ assert.equal(assignments,180)
+ for(const p of m.staff){let run=0;for(const day of m.range(m.rosterStart,'2026-11-01')){run=m.initialShifts[p.id+'|'+day]!=null?run+1:0;assert.ok(run<=6,p.name+' '+day)}}
+ const issues=m.validate(m.initialShifts,m.initialRequests,'2026-10-05');assert.ok(issues.length>0);assert.equal(m.canPublish(issues,false),false);assert.equal(m.canPublish(issues,true),true)
 })
