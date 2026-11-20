@@ -1,7 +1,7 @@
 export const staff = [
  ['Maya Chen','Shift lead',23,6,10],['Amara Okafor','Barista',19,5,8],['Leo Rivera','Barista',18.5,4,2],
  ['Sofia Patel','Kitchen',21,4,7],['Noah Kim','Barista',18,5,7],['Isla Brooks','Counter',16,3,5,true],
- ['Finn Murphy','Counter',16,3,5,true],['Jules Martin','Kitchen',20,4,8]
+ ['Finn Murphy','Counter',16,1,5,true],['Jules Martin','Kitchen',20,4,8]
 ].map(([name,role,rate,sick,vacation,minor],id)=>({id,name,role,rate:rate*10,sick,vacation,minor, unavailable:[[5,6],[5,6],[0,1],[1,2],[5,6],[2,3],[3,4],[0,1]][id]}))
 const historicalTemplates=[{name:'Opening',start:540,end:1020,tone:'mint'},{name:'Midday',start:600,end:1080,tone:'blue'},{name:'Closing',start:780,end:1260,tone:'peach'}]
 export const templates=[{name:'Opening',start:360,end:840,tone:'mint'},{name:'Midday',start:660,end:1140,tone:'blue'},{name:'Closing',start:900,end:1380,tone:'peach'}]
