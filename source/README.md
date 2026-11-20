@@ -38,7 +38,7 @@ Actual weekly overtime is paid at 1.5x. Paid leave contributes its scheduled hou
 
 ## Persistence and validation
 
-The November-minor32 storage namespace resets older fixtures once so stale schedules and requests cannot mix with the updated month. Later edits persist locally. Twenty-seven tests cover all employees, October and November day-by-day staffing, closed holidays, Week Offs, leave, actual clocks, rest, minor restrictions, weekly overtime boundaries, LOP approval, pending requests, editable historical dates, monthly breakdown totals, payroll and publishing. November changes were separately checked against the previous October roster and payslip snapshots.
+The November-minor32 storage namespace resets older fixtures once so stale schedules and requests cannot mix with the updated month. Later edits persist locally. Thirty-two tests cover all employees, October and November day-by-day staffing, closed holidays, Week Offs, leave, actual clocks, rest, minor restrictions, weekly overtime boundaries, LOP approval, pending requests, editable historical dates, monthly breakdown totals, payroll and publishing. November changes were separately checked against the previous October roster and payslip snapshots.
 
 The scheduler highlights over-40-hours and understaffing warnings in amber. Rest below eight hours and minors ending after 22:00 are red blockers. The rule legend names all four checks. Tuesday/Thursday coverage cells explicitly say Closing 1/2 and Understaffed. Blocking errors prevent publication; warnings require acknowledgment. Tests exercise a real 23:00-to-06:00 rest blocker and an under-18 23:00 closing blocker.
 
@@ -57,3 +57,9 @@ Approved future leave appears immediately in the attendance calendar as Paid lea
 Absences are not added to the unpaid-leave count. LOP is deducted once below gross pay; absences remain excluded from base pay. The payslip separately lists their days and hours. Click Attendance > Overtime > View weekly breakdown for each Monday-Sunday actual-hours calculation, the 40-hour threshold, weekly overtime, the selected month share, and expandable daily clock rows. Overtime uses max(0, actual weekly work minus 40); leave and absence do not count as worked hours.
 
 Home uses the current India date (Asia/Kolkata), refreshing on window focus, visibility changes and every 30 seconds. Today’s roster follows that date. Home checks independently target the first unpublished Monday-Sunday week after the current week, skipping published weeks; Review schedule opens that exact week. Historical attendance retains its existing mock reporting cutoff.
+
+## Editable Week Off and Leave templates
+
+Drag Week Off or Leave onto a staff/day cell, or click the template then a cell. Clicking a cell also offers these choices. Remove Week Off or Remove leave is available in the cell dialog. Week Off removes the planned shift; historical clock records remain unchanged. Assigning a work shift replaces Week Off. Week Off overrides persist and are included in validation, copying and planned-week restoration. Closed holidays cannot be replaced by Week Off or Leave.
+
+Leave opens an explicit Sick, Vacation or Unpaid/LOP confirmation showing balances and the paid/LOP split. Only Approve & add leave commits it, removes the planned shift and updates balances, attendance and payroll. Removing leave requires confirmation, applies only to that date and restores its deducted paid balance; other dates remain approved. The five original pending requests are not approved automatically.

@@ -286,3 +286,55 @@ test('payslips distinguish absence from unpaid leave and exclude both from worke
    assert.equal(Math.round((pay.gross-pay.deductions)*100)/100,pay.net)
   }
  })
+
+test('editable Week Offs affect coverage and availability without changing historical clocks',()=>{
+ const id=0,day='2026-11-25',key=id+'|'+day,shifts={...m.initialShifts};delete shifts[key]
+ const offs={[key]:true}
+ assert.equal(m.unavailable(id,day,offs),true)
+ assert.equal(m.attendance(m.initialRequests,id,day,shifts,offs).status,'Off')
+ assert.equal(m.attendance(m.initialRequests,id,day,shifts,offs).actual,0)
+ const offDay=m.monthDays('2026-11').find(d=>m.unavailable(id,d)&&!m.holidays.includes(d)),offKey=id+'|'+offDay,assigned={...shifts,[offKey]:0}
+ assert.equal(m.unavailable(id,offDay,{[offKey]:false}),false)
+ assert.ok(!m.validate(assigned,m.initialRequests,m.monday(offDay),{[offKey]:false}).some(i=>i.label.includes('has a Week Off on '+offDay)&&i.keys.includes(offKey)))
+ const past='2026-11-20',old=m.attendance(m.initialRequests,id,past),changed={...m.initialShifts};delete changed[id+'|'+past]
+ const actual=m.attendance(m.initialRequests,id,past,changed,{[id+'|'+past]:true})
+ assert.equal(actual.actual,old.actual);assert.equal(actual.clockIn,old.clockIn);assert.equal(actual.scheduled,0)
+})
+test('manager scheduled leave can replace a Week Off and has an explicit paid or LOP approval',()=>{
+ const id=0,day=m.range('2026-11-24','2026-11-30').find(d=>m.unavailable(id,d)),before=m.leaveBalances(m.initialRequests,id)
+ const draft=m.scheduleLeaveDraft(m.initialRequests,id,day,'sick'),pending=[...m.initialRequests,draft]
+ assert.equal(m.leaveAt(pending,id,day),undefined)
+ assert.deepEqual(m.requestDays(draft),[day])
+ const approved=m.approveLeave(pending,draft.id)
+ assert.equal(m.leaveBalances(approved,id).sick,before.sick-1)
+ const record=m.attendance(approved,id,day)
+ assert.equal(record.status,'Leave');assert.equal(record.scheduled,8);assert.equal(record.paid,true);assert.equal(record.future,true)
+ const removed=m.removeLeaveDay(approved,id,day)
+ assert.deepEqual(m.leaveBalances(removed,id),before);assert.equal(m.leaveAt(removed,id,day),undefined)
+ assert.throws(()=>m.scheduleLeaveDraft(approved,id,day,'vacation'),/existing leave/)
+})
+test('removing one day from a mixed paid and LOP request preserves other days and refunds only that day',()=>{
+ const before=m.initialRequests,leo=before.find(r=>r.id===2),days=m.requestDays(leo),approved=m.approveLeave(before,leo.id)
+ const balance=m.balance(approved,leo.staff,'vacation'),removed=m.removeLeaveDay(approved,leo.staff,days[0])
+ assert.equal(m.leaveAt(removed,leo.staff,days[0]),undefined)
+ assert.equal(m.balance(removed,leo.staff,'vacation'),balance+1)
+ assert.equal(m.leaveAt(removed,leo.staff,days[1]).paid,true)
+ assert.equal(m.leaveAt(removed,leo.staff,days[2]).paid,false)
+ assert.equal(m.balance(m.removeLeaveDay(removed,leo.staff,days[2]),leo.staff,'vacation'),balance+1)
+})
+test('scheduler leave updates completed attendance and payroll, and removal reverses the allocation',()=>{
+ const id=0,day=m.monthDays('2026-10').find(d=>m.unavailable(id,d)&&!m.holidays.includes(d)),draft=m.scheduleLeaveDraft(m.initialRequests,id,day,'sick'),before=m.payroll(m.initialRequests,id,'2026-10')
+ const approved=m.approveLeave([...m.initialRequests,draft],draft.id),after=m.payroll(approved,id,'2026-10')
+ assert.equal(after.paidLeave,before.paidLeave+8)
+ assert.equal(m.attendance(approved,id,day).status,'Leave')
+ assert.equal(m.payroll(m.removeLeaveDay(approved,id,day),id,'2026-10').net,before.net)
+ const unpaid=m.scheduleLeaveDraft(m.initialRequests,id,day,'unpaid'),lop=m.approveLeave([...m.initialRequests,unpaid],unpaid.id),pay=m.payroll(lop,id,'2026-10')
+ assert.equal(pay.unpaid,before.unpaid+8);assert.equal(pay.unpaidDeduction,before.unpaidDeduction+8*pay.rate)
+ assert.equal(Math.round((pay.gross-pay.deductions)*100)/100,pay.net)
+ assert.deepEqual(m.leaveBalances(lop,id),m.leaveBalances(m.initialRequests,id))
+})
+test('scheduler leave cannot replace a holiday and default requests remain pending',()=>{
+ assert.throws(()=>m.scheduleLeaveDraft(m.initialRequests,0,'2026-11-08','sick'),/holiday/)
+ assert.throws(()=>m.scheduleLeaveDraft(m.initialRequests,0,'2026-11-25','other'),/Choose/)
+ assert.equal(m.initialRequests.filter(r=>r.status==='Pending').length,5)
+})
