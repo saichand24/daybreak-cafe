@@ -220,13 +220,13 @@ export function validate(shifts,requests,start,weekOffs={}){
  }
  return issues.sort((a,b)=>(a.level==='Error'?0:1)-(b.level==='Error'?0:1))
 }
-function rawAttendance(requests,id,day,shifts=initialShifts,weekOffs={}){
+function rawAttendance(requests,id,day,shifts=initialShifts,weekOffs={},cutoff=asOf){
  const assigned=shiftTemplate(shifts[id+'|'+day],day),leave=leaveAt(requests,id,day)
  const scheduled=leave?(leave.hoursByDay?.[day]??scheduledHours(id,day)):assigned?(assigned.end-assigned.start)/60:0
  if(day<rosterStart)return {status:'Not recorded',scheduled,actual:0}
  if(holidays.includes(day))return {status:'Holiday',scheduled:0,actual:0}
- if(leave)return {status:'Leave',scheduled,actual:0,paid:leave.paid,type:leave.type,future:day>asOf}
- if(day>asOf)return weekOffs[id+'|'+day]===true?{status:'Off',scheduled:0,actual:0,future:true}:{status:'Not recorded',scheduled,actual:0}
+ if(leave)return {status:'Leave',scheduled,actual:0,paid:leave.paid,type:leave.type,future:day>cutoff}
+ if(day>cutoff)return weekOffs[id+'|'+day]===true?{status:'Off',scheduled:0,actual:0,future:true}:{status:'Not recorded',scheduled,actual:0}
  const recorded=shiftTemplate(initialShifts[id+'|'+day],day)
  if(!recorded)return {status:scheduled?'Absent':'Off',scheduled,actual:0}
  const n=Number(day.slice(-2)),late=(n+id)%11===0
@@ -234,9 +234,9 @@ function rawAttendance(requests,id,day,shifts=initialShifts,weekOffs={}){
  const clockIn=recorded.start+(late?15:0),clockOut=Math.min(day.startsWith('2026-11')?1380:1440,recorded.end+((n+id)%13===0&&!(staff[id].minor&&day.startsWith('2026-11'))?60:0))
  return {status:late?'Late':'Present',scheduled,actual:(clockOut-clockIn)/60,clockIn,clockOut}
 }
-export function attendance(requests,id,day,shifts=initialShifts,weekOffs={}){
- const r=rawAttendance(requests,id,day,shifts,weekOffs),previous=date(day,-1)
- const prior=previous<monday(day)?0:range(monday(day),previous).reduce((n,d)=>n+rawAttendance(requests,id,d,shifts,weekOffs).actual,0)
+export function attendance(requests,id,day,shifts=initialShifts,weekOffs={},cutoff=asOf){
+ const r=rawAttendance(requests,id,day,shifts,weekOffs,cutoff),previous=date(day,-1)
+ const prior=previous<monday(day)?0:range(monday(day),previous).reduce((n,d)=>n+rawAttendance(requests,id,d,shifts,weekOffs,cutoff).actual,0)
  return {...r,overtime:Math.max(0,prior+r.actual-40)-Math.max(0,prior-40)}
 }
 export const monthDays=month=>range(month+'-01',date(month+'-01',32).slice(0,7)+'-01').filter(d=>d.startsWith(month))
@@ -259,19 +259,19 @@ export function payroll(requests,id,month,shifts=initialShifts,weekOffs={}){
 }
 
 
-export function attendanceTotals(records){
- const rows=records.filter(r=>r.status!=='Not recorded'&&!r.future&&(!r.day||r.day<=asOf))
+export function attendanceTotals(records,cutoff=asOf){
+ const rows=records.filter(r=>r.status!=='Not recorded'&&!r.future&&(!r.day||r.day<=cutoff))
  const sum=(filter,field)=>rows.filter(filter).reduce((n,r)=>n+Math.round((r[field]||0)*60),0)/60
  const worked=sum(()=>true,'actual'),overtime=sum(()=>true,'overtime')
  return {worked,overtime,regular:worked-overtime,paidLeave:sum(r=>r.status==='Leave'&&r.paid,'scheduled'),unpaidLeave:sum(r=>r.status==='Leave'&&!r.paid,'scheduled'),absent:sum(r=>r.status==='Absent','scheduled'),paidLeaveDays:rows.filter(r=>r.status==='Leave'&&r.paid).length,unpaidLeaveDays:rows.filter(r=>r.status==='Leave'&&!r.paid).length,absentDays:rows.filter(r=>r.status==='Absent').length}
 }
 
 export const leaveBalances=(requests,id)=>({sick:balance(requests,id,'sick'),vacation:balance(requests,id,'vacation')})
-export function weeklyAttendanceBreakdown(requests,id,month,shifts=initialShifts,weekOffs={}){
+export function weeklyAttendanceBreakdown(requests,id,month,shifts=initialShifts,weekOffs={},cutoff=asOf){
  const starts=[...new Set(monthDays(month).map(monday))]
  return starts.map(start=>{
-  const end=date(start,6),rows=range(start,end).map(day=>({day,...attendance(requests,id,day,shifts)})),worked=rows.reduce((n,r)=>n+r.actual,0),overtime=Math.max(0,worked-40),monthOvertime=rows.filter(r=>r.day.startsWith(month)).reduce((n,r)=>n+r.overtime,0)
-  return {start,end,rows,worked,regular:Math.min(worked,40),overtime,monthOvertime,hasRecords:rows.some(r=>r.day<=asOf&&r.status!=='Not recorded'),partial:end>asOf}
+  const end=date(start,6),rows=range(start,end).map(day=>({day,...attendance(requests,id,day,shifts,weekOffs,cutoff)})),worked=rows.reduce((n,r)=>n+r.actual,0),overtime=Math.max(0,worked-40),monthOvertime=rows.filter(r=>r.day.startsWith(month)).reduce((n,r)=>n+r.overtime,0)
+  return {start,end,rows,worked,regular:Math.min(worked,40),overtime,monthOvertime,hasRecords:rows.some(r=>r.day<=cutoff&&r.status!=='Not recorded'),partial:end>cutoff}
  })
 }
 

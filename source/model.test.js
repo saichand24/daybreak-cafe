@@ -375,3 +375,30 @@ test('generic pending leave uses vacation first while explicit manager unpaid le
  assert.deepEqual(m.leaveBalances(explicit,0),m.leaveBalances(m.initialRequests,0))
  for(const r of m.initialRequests.filter(r=>r.status==='Approved'&&r.type==='unpaid'))assert.equal(m.leaveAt(approved,r.staff,m.requestDays(r)[0]).paid,false)
 })
+
+test('runtime Attendance releases only completed days and advances at India midnight',()=>{
+ const requests=m.initialRequests,shifts=m.initialShifts,empty={}
+ const today=m.todayInCafe(new Date('2026-11-20T10:00:00Z')),cutoff=m.date(today,-1)
+ assert.equal(cutoff,'2026-11-19')
+ for(const p of m.staff){
+  assert.equal(m.attendance(requests,p.id,'2026-11-20',shifts,empty,cutoff).status,'Not recorded')
+  const tomorrowCutoff=m.date(m.todayInCafe(new Date('2026-11-20T18:30:00Z')),-1)
+  assert.equal(tomorrowCutoff,'2026-11-20')
+  assert.notEqual(m.attendance(requests,p.id,'2026-11-20',shifts,empty,tomorrowCutoff).status,'Not recorded')
+  const rows=m.monthDays('2026-11').map(day=>({day,...m.attendance(requests,p.id,day,shifts,empty,cutoff)}))
+  assert.equal(m.attendanceTotals(rows,cutoff).worked,rows.filter(r=>r.day<=cutoff).reduce((n,r)=>n+r.actual,0))
+  assert.ok(rows.filter(r=>r.day>cutoff).every(r=>r.actual===0&&r.clockIn==null&&r.overtime===0))
+ }
+})
+test('runtime Attendance progresses past the old fixed date, keeps future leave and reconciles weekly overtime',()=>{
+ const request=m.initialRequests.find(r=>r.id===2),approved=m.approveLeave(m.initialRequests,request.id),cutoff='2026-11-19'
+ for(const day of m.requestDays(request)){const r=m.attendance(approved,request.staff,day,m.initialShifts,{},cutoff);assert.equal(r.status,'Leave');assert.equal(r.future,true);assert.equal(r.actual,0)}
+ for(const p of m.staff){
+  const next='2026-11-25',rows=m.monthDays('2026-11').map(day=>({day,...m.attendance(m.initialRequests,p.id,day,m.initialShifts,{},next)})),weeks=m.weeklyAttendanceBreakdown(m.initialRequests,p.id,'2026-11',m.initialShifts,{},next)
+  assert.notEqual(rows.find(r=>r.day===next).status,'Not recorded')
+  assert.equal(weeks.reduce((n,w)=>n+w.monthOvertime,0),m.attendanceTotals(rows,next).overtime)
+  assert.ok(weeks.flatMap(w=>w.rows).filter(r=>r.day>next).every(r=>r.actual===0&&r.clockIn==null))
+ }
+ assert.equal(m.date(m.todayInCafe(new Date('2026-12-01T00:00:00Z')),-1),'2026-11-30')
+ assert.equal(m.attendance(m.initialRequests,0,'2026-11-25').status,'Not recorded')
+})
