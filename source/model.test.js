@@ -339,15 +339,15 @@ test('scheduler leave cannot replace a holiday and default requests remain pendi
  assert.equal(m.initialRequests.filter(r=>r.status==='Pending').length,5)
 })
 
-test('payslip base hours match Attendance worked hours and absences join unpaid deductions exactly once',()=>{
+test('payslip base hours equal Attendance worked hours minus overtime and absences are deducted once',()=>{
  for(const p of m.staff)for(const month of ['2026-10','2026-11']){
   const rows=m.monthDays(month).map(day=>({day,...m.attendance(m.initialRequests,p.id,day)})),totals=m.attendanceTotals(rows),pay=m.payroll(m.initialRequests,p.id,month)
   assert.equal(pay.worked,totals.worked)
-  assert.equal(pay.basePay,pay.worked*pay.rate)
+  assert.equal(pay.basePay,(totals.worked-totals.overtime)*pay.rate)
   assert.equal(pay.totalUnpaid,totals.unpaidLeave+totals.absent)
   assert.equal(pay.totalUnpaidDays,totals.unpaidLeaveDays+totals.absentDays)
-  assert.equal(pay.overtimePremium,pay.overtime*pay.rate*0.5)
-  assert.equal(pay.gross,pay.basePay+pay.overtimePremium+pay.paidLeave*pay.rate+pay.tips+pay.unpaidDeduction)
+  assert.equal(pay.overtimePay,totals.overtime*pay.rate*1.5)
+  assert.equal(pay.gross,pay.basePay+pay.overtimePay+pay.paidLeave*pay.rate+pay.tips+pay.unpaidDeduction)
   assert.equal(Math.round((pay.gross-pay.deductions)*100)/100,pay.net)
   assert.equal(pay.net,Math.round((pay.earnedGross-pay.withholding)*100)/100)
  }
