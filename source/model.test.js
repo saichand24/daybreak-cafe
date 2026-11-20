@@ -27,7 +27,7 @@ test('attendance overtime and payslip hours reconcile for every employee and mon
  assert.equal(pay.overtime,rows.reduce((n,r)=>n+r.overtime,0))
  assert.equal(pay.paidLeave,rows.filter(r=>r.status==='Leave'&&r.paid).reduce((n,r)=>n+r.scheduled,0))
  assert.equal(pay.unpaid,rows.filter(r=>r.status==='Leave'&&!r.paid).reduce((n,r)=>n+r.scheduled,0))
- assert.equal(pay.gross,(pay.base+pay.paidLeave+pay.unpaid)*pay.rate+pay.overtime*pay.rate*1.5+pay.tips)
+ assert.equal(pay.gross,(pay.base+pay.paidLeave+pay.unpaid+pay.absent)*pay.rate+pay.overtime*pay.rate*1.5+pay.tips)
  assert.equal(pay.net,Math.round((pay.gross-pay.deductions)*100)/100)
  }
 })
@@ -100,7 +100,7 @@ test('mixed paid and LOP days reconcile with attendance, usage and payslip',()=>
  assert.equal(pay.unpaid,(requested.length-2)*8)
  assert.equal(pay.unpaidDays,requested.length-2)
  assert.deepEqual(m.leaveSummary(approved,2,'2026-10'),{paid:2,unpaid:requested.length-2})
- assert.equal(pay.gross,(pay.base+16+pay.unpaid)*pay.rate+pay.overtime*pay.rate*1.5+pay.tips)
+ assert.equal(pay.gross,(pay.base+16+pay.unpaid+pay.absent)*pay.rate+pay.overtime*pay.rate*1.5+pay.tips)
  const overlap=approved.concat({...request,id:503,start:requested[0],end:requested[0]})
  assert.throws(()=>m.approveLeave(overlap,503),/overlap/)
  const offDay=m.monthDays('2026-10').find(d=>m.unavailable(2,d));const off=before.concat({...request,id:504,start:offDay,end:offDay})
@@ -262,7 +262,7 @@ test('payslips distinguish absence from unpaid leave and exclude both from worke
   assert.equal(pay.absent,rows.filter(r=>r.status==='Absent').reduce((n,r)=>n+r.scheduled,0))
   assert.equal(pay.unpaidDays,rows.filter(r=>r.status==='Leave'&&!r.paid&&!r.future).length)
   for(const r of rows.filter(r=>r.status==='Absent'))assert.equal(r.actual,0)
-  assert.equal(pay.gross,(pay.base+pay.paidLeave+pay.unpaid)*pay.rate+pay.overtime*pay.rate*1.5+pay.tips)
+  assert.equal(pay.gross,(pay.base+pay.paidLeave+pay.unpaid+pay.absent)*pay.rate+pay.overtime*pay.rate*1.5+pay.tips)
  }
  const amara=m.payroll(m.initialRequests,1,'2026-10');assert.ok(amara.absentDays>0&&amara.unpaidDays>0)
 })
@@ -279,7 +279,7 @@ test('payslips distinguish absence from unpaid leave and exclude both from worke
  test('LOP is a deduction from pre-LOP gross, with no second reduction to net pay',()=>{
   for(const p of m.staff)for(const month of ['2026-10','2026-11']){
    const pay=m.payroll(m.initialRequests,p.id,month)
-   assert.equal(pay.unpaidDeduction,pay.unpaid*pay.rate)
+   assert.equal(pay.unpaidDeduction,(pay.unpaid+pay.absent)*pay.rate)
    assert.equal(pay.gross-pay.unpaidDeduction,pay.earnedGross)
    assert.equal(pay.deductions,pay.unpaidDeduction+pay.withholding)
    assert.equal(pay.net,Math.round((pay.earnedGross-pay.withholding)*100)/100)
@@ -337,4 +337,41 @@ test('scheduler leave cannot replace a holiday and default requests remain pendi
  assert.throws(()=>m.scheduleLeaveDraft(m.initialRequests,0,'2026-11-08','sick'),/holiday/)
  assert.throws(()=>m.scheduleLeaveDraft(m.initialRequests,0,'2026-11-25','other'),/Choose/)
  assert.equal(m.initialRequests.filter(r=>r.status==='Pending').length,5)
+})
+
+test('payslip base hours match Attendance worked hours and absences join unpaid deductions exactly once',()=>{
+ for(const p of m.staff)for(const month of ['2026-10','2026-11']){
+  const rows=m.monthDays(month).map(day=>({day,...m.attendance(m.initialRequests,p.id,day)})),totals=m.attendanceTotals(rows),pay=m.payroll(m.initialRequests,p.id,month)
+  assert.equal(pay.worked,totals.worked)
+  assert.equal(pay.basePay,pay.worked*pay.rate)
+  assert.equal(pay.totalUnpaid,totals.unpaidLeave+totals.absent)
+  assert.equal(pay.totalUnpaidDays,totals.unpaidLeaveDays+totals.absentDays)
+  assert.equal(pay.overtimePremium,pay.overtime*pay.rate*0.5)
+  assert.equal(pay.gross,pay.basePay+pay.overtimePremium+pay.paidLeave*pay.rate+pay.tips+pay.unpaidDeduction)
+  assert.equal(Math.round((pay.gross-pay.deductions)*100)/100,pay.net)
+  assert.equal(pay.net,Math.round((pay.earnedGross-pay.withholding)*100)/100)
+ }
+})
+test('leave-request subtitles identify sick or vacation leave without payment labels',()=>{
+ for(const r of m.initialRequests)assert.ok(['Sick leave','Vacation leave'].includes(m.leaveRequestLabel(r)))
+})
+test('Sofia vacation approval uses one available day before a chronological unpaid day',()=>{
+ const history=m.initialRequests.filter(r=>!(r.staff===3&&r.status==='Pending'))
+ const used={id:9001,staff:3,type:'vacation',start:'2026-11-02',end:'2026-11-07',days:['2026-11-02','2026-11-03','2026-11-04','2026-11-05','2026-11-06','2026-11-07'],paidDays:['2026-11-02','2026-11-03','2026-11-04','2026-11-05','2026-11-06','2026-11-07'],status:'Approved',paid:true}
+ const request={id:9002,staff:3,type:'vacation',start:'2026-11-26',end:'2026-11-27',days:['2026-11-26','2026-11-27'],hoursByDay:{'2026-11-26':8,'2026-11-27':8},status:'Pending',paid:true}
+ const before=[...history,used,request];assert.equal(m.leaveBalances(before,3).vacation,1)
+ const approved=m.approveLeave(before,9002);assert.equal(m.leaveBalances(approved,3).vacation,0)
+ assert.equal(m.attendance(approved,3,'2026-11-26').paid,true)
+ assert.equal(m.attendance(approved,3,'2026-11-27').paid,false)
+ for(const day of request.days){assert.equal(m.attendance(approved,3,day).status,'Leave');assert.equal(m.leaveAt(approved,3,day).status,'Approved')}
+})
+
+test('generic pending leave uses vacation first while explicit manager unpaid leave stays unpaid',()=>{
+ const request=m.initialRequests.find(r=>r.id===4),before=m.leaveBalances(m.initialRequests,request.staff),approved=m.approveLeave(m.initialRequests,request.id)
+ assert.equal(m.leaveBalances(approved,request.staff).vacation,before.vacation-m.requestDays(request).length)
+ assert.ok(m.requestDays(request).every(day=>m.leaveAt(approved,request.staff,day).paid))
+ const draft=m.scheduleLeaveDraft(m.initialRequests,0,'2026-11-25','unpaid'),explicit=m.approveLeave([...m.initialRequests,draft],draft.id)
+ assert.equal(m.leaveAt(explicit,0,'2026-11-25').paid,false)
+ assert.deepEqual(m.leaveBalances(explicit,0),m.leaveBalances(m.initialRequests,0))
+ for(const r of m.initialRequests.filter(r=>r.status==='Approved'&&r.type==='unpaid'))assert.equal(m.leaveAt(approved,r.staff,m.requestDays(r)[0]).paid,false)
 })

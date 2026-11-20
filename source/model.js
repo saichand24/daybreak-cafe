@@ -132,18 +132,20 @@ for(const r of initialRequests.filter(r=>r.status==='Pending')){
 }
 
 export const requestDays=r=>r.days??range(r.start,r.end).filter(day=>scheduledHours(r.staff,day)>0)
+export const requestForApproval=r=>r.status==='Pending'&&r.type==='unpaid'&&!r.forceUnpaid?{...r,type:'vacation',paid:true}:r
 export const leaveAllocation=(requests,r)=>{
+ r=requestForApproval(r)
  const days=requestDays(r),available=r.type==='unpaid'||!r.paid?0:Math.max(0,leaveBalances(requests,r.staff)[r.type])
  const paidDays=r.status==='Approved'?(r.paidDays??(r.paid?days:[])):days.slice(0,available)
  return {days,available,paidDays,lopDays:days.filter(day=>!paidDays.includes(day))}
 }
 export function approveLeave(requests,id){
- const r=requests.find(item=>item.id===id)
+ const stored=requests.find(item=>item.id===id),r=stored&&requestForApproval(stored)
  if(!r||r.status!=='Pending')throw new Error('This request has already been reviewed.')
  const allocation=leaveAllocation(requests,r)
  if(!allocation.days.length)throw new Error('This request has no scheduled working days.')
  if(allocation.days.some(day=>leaveAt(requests,r.staff,day)))throw new Error('These dates overlap approved leave.')
- return requests.map(item=>item.id===id?{...item,status:'Approved',paid:allocation.paidDays.length>0,paidDays:allocation.paidDays}:item)
+ return requests.map(item=>item.id===id?{...r,status:'Approved',paid:allocation.paidDays.length>0,paidDays:allocation.paidDays}:item)
 }
 export const leaveAt=(requests,id,day)=>{const r=requests.find(r=>r.staff===id&&r.status==='Approved'&&requestDays(r).includes(day));return r?{...r,paid:r.paidDays?r.paidDays.includes(day):r.paid}:undefined}
 export const balance=(requests,id,type)=>type==='unpaid'?Infinity:staff[id][type]-requests.filter(r=>r.staff===id&&r.type===type&&r.status==='Approved'&&r.paid).reduce((n,r)=>n+(r.paidDays??requestDays(r)).length,0)
@@ -251,8 +253,9 @@ export function payroll(requests,id,month,shifts=initialShifts,weekOffs={}){
   if(record.status==='Leave'&&day<=asOf){if(record.paid){paidLeave+=record.scheduled;paidLeaveDays++}else{unpaid+=record.scheduled;unpaidDays++}}
  }
  const rate=staff[id].rate,tips=(base+overtime)*12,earnedGross=(base+paidLeave)*rate+overtime*rate*1.5+tips
- const unpaidDeduction=unpaid*rate,withholding=Math.round(earnedGross*8)/100,gross=earnedGross+unpaidDeduction,deductions=withholding+unpaidDeduction
- return {base,overtime,paidLeave,paidLeaveDays,unpaid,unpaidDays,scheduled,absent,absentDays,rate,tips,earnedGross,unpaidDeduction,withholding,gross,deductions,net:Math.round((gross-deductions)*100)/100}
+ const worked=base+overtime,basePay=worked*rate,overtimePremium=overtime*rate*0.5,totalUnpaid=unpaid+absent,totalUnpaidDays=unpaidDays+absentDays
+ const unpaidDeduction=totalUnpaid*rate,withholding=Math.round(earnedGross*8)/100,gross=earnedGross+unpaidDeduction,deductions=withholding+unpaidDeduction
+ return {base,worked,basePay,overtime,overtimePremium,paidLeave,paidLeaveDays,unpaid,unpaidDays,totalUnpaid,totalUnpaidDays,scheduled,absent,absentDays,rate,tips,earnedGross,unpaidDeduction,withholding,gross,deductions,net:Math.round((gross-deductions)*100)/100}
 }
 
 
@@ -284,5 +287,7 @@ export function scheduleLeaveDraft(requests,id,day,type,shifts=initialShifts){
  if(leaveAt(requests,id,day))throw new Error('Remove the existing leave before adding another leave.')
  if(!['sick','vacation','unpaid'].includes(type))throw new Error('Choose Sick, Vacation or Unpaid leave.')
  const shift=shiftTemplate(shifts[id+'|'+day],day)
- return {id:Math.max(1000,...requests.map(r=>r.id))+1,staff:id,type,start:day,end:day,days:[day],hoursByDay:{[day]:shift?(shift.end-shift.start)/60:8},reason:'Manager scheduled leave',requestedOn:todayInCafe(),status:'Pending',paid:type!=='unpaid'}
+ return {id:Math.max(1000,...requests.map(r=>r.id))+1,staff:id,type,start:day,end:day,days:[day],hoursByDay:{[day]:shift?(shift.end-shift.start)/60:8},reason:'Manager scheduled leave',requestedOn:todayInCafe(),status:'Pending',paid:type!=='unpaid',forceUnpaid:type==='unpaid'}
 }
+
+export const leaveRequestLabel=r=>r.type==='sick'?'Sick leave':'Vacation leave'
