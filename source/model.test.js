@@ -27,7 +27,7 @@ test('attendance overtime and payslip hours reconcile for every employee and mon
  assert.equal(pay.overtime,rows.reduce((n,r)=>n+r.overtime,0))
  assert.equal(pay.paidLeave,rows.filter(r=>r.status==='Leave'&&r.paid).reduce((n,r)=>n+r.scheduled,0))
  assert.equal(pay.unpaid,rows.filter(r=>r.status==='Leave'&&!r.paid).reduce((n,r)=>n+r.scheduled,0))
- assert.equal(Math.round(pay.gross*100),Math.round(((pay.base+pay.paidLeave+pay.unpaid+pay.absent)*pay.rate+pay.overtime*pay.rate*1.5+pay.tips)*100))
+ assert.equal(Math.round(pay.gross*100),Math.round(((pay.base+pay.paidLeave)*pay.rate+pay.overtime*pay.rate*1.5+pay.tips)*100))
  assert.equal(pay.net,Math.round((pay.gross-pay.deductions)*100)/100)
  }
 })
@@ -100,7 +100,7 @@ test('mixed paid and LOP days reconcile with attendance, usage and payslip',()=>
  assert.equal(pay.unpaid,(requested.length-2)*8)
  assert.equal(pay.unpaidDays,requested.length-2)
  assert.deepEqual(m.leaveSummary(approved,2,'2026-10'),{paid:2,unpaid:requested.length-2})
- assert.equal(Math.round(pay.gross*100),Math.round(((pay.base+16+pay.unpaid+pay.absent)*pay.rate+pay.overtime*pay.rate*1.5+pay.tips)*100))
+ assert.equal(Math.round(pay.gross*100),Math.round(((pay.base+16)*pay.rate+pay.overtime*pay.rate*1.5+pay.tips)*100))
  const overlap=approved.concat({...request,id:503,start:requested[0],end:requested[0]})
  assert.throws(()=>m.approveLeave(overlap,503),/overlap/)
  const offDay=m.monthDays('2026-10').find(d=>m.unavailable(2,d));const off=before.concat({...request,id:504,start:offDay,end:offDay})
@@ -262,7 +262,7 @@ test('payslips distinguish absence from unpaid leave and exclude both from worke
   assert.equal(pay.absent,rows.filter(r=>r.status==='Absent').reduce((n,r)=>n+r.scheduled,0))
   assert.equal(pay.unpaidDays,rows.filter(r=>r.status==='Leave'&&!r.paid&&!r.future).length)
   for(const r of rows.filter(r=>r.status==='Absent'))assert.equal(r.actual,0)
-  assert.equal(Math.round(pay.gross*100),Math.round(((pay.base+pay.paidLeave+pay.unpaid+pay.absent)*pay.rate+pay.overtime*pay.rate*1.5+pay.tips)*100))
+  assert.equal(Math.round(pay.gross*100),Math.round(((pay.base+pay.paidLeave)*pay.rate+pay.overtime*pay.rate*1.5+pay.tips)*100))
  }
  const amara=m.payroll(m.initialRequests,1,'2026-10');assert.ok(amara.absentDays>0&&amara.unpaidDays>0)
 })
@@ -276,13 +276,13 @@ test('payslips distinguish absence from unpaid leave and exclude both from worke
   assert.equal(m.nextUnpublishedWeek('2026-11-20',{'2026-11-23':true,'2026-11-30':true}),'2026-12-07')
   assert.equal(m.nextUnpublishedWeek('2026-11-20',{'2026-11-23':false}),'2026-11-23')
  })
- test('LOP is a deduction from pre-LOP gross, with no second reduction to net pay',()=>{
+ test('unpaid time is a negative deduction from earned gross without a positive offset',()=>{
   for(const p of m.staff)for(const month of ['2026-10','2026-11']){
    const pay=m.payroll(m.initialRequests,p.id,month)
    assert.equal(pay.unpaidDeduction,(pay.unpaid+pay.absent)*pay.rate)
-   assert.equal(Math.round((pay.gross-pay.unpaidDeduction)*100),Math.round(pay.earnedGross*100))
+   assert.equal(pay.gross,pay.earnedGross)
    assert.equal(pay.deductions,pay.unpaidDeduction+pay.withholding)
-   assert.equal(pay.net,Math.round((pay.earnedGross-pay.withholding)*100)/100)
+   assert.equal(pay.net,Math.round((pay.earnedGross-pay.withholding-pay.unpaidDeduction)*100)/100)
    assert.equal(Math.round((pay.gross-pay.deductions)*100)/100,pay.net)
   }
  })
@@ -347,9 +347,9 @@ test('payslip base hours equal Attendance worked hours minus overtime and absenc
   assert.equal(pay.totalUnpaid,totals.unpaidLeave+totals.absent)
   assert.equal(pay.totalUnpaidDays,totals.unpaidLeaveDays+totals.absentDays)
   assert.equal(pay.overtimePay,Math.round(totals.overtime*pay.rate*1.5*100)/100)
-  assert.equal(Math.round(pay.gross*100),Math.round((pay.basePay+pay.overtimePay+pay.paidLeave*pay.rate+pay.tips+pay.unpaidDeduction)*100))
+  assert.equal(Math.round(pay.gross*100),Math.round((pay.basePay+pay.overtimePay+pay.paidLeave*pay.rate+pay.tips)*100))
   assert.equal(Math.round((pay.gross-pay.deductions)*100)/100,pay.net)
-  assert.equal(pay.net,Math.round((pay.earnedGross-pay.withholding)*100)/100)
+  assert.equal(pay.net,Math.round((pay.earnedGross-pay.withholding-pay.unpaidDeduction)*100)/100)
  }
 })
 test('leave-request subtitles identify sick or vacation leave without payment labels',()=>{
@@ -421,4 +421,12 @@ test('stored default December weekends gain midday coverage without adding worki
  assert.deepEqual(Object.keys(next).sort(),Object.keys(old).sort())
  assert.ok(Object.values(next).includes(1));assert.equal(Object.values(next).filter(type=>type===2).length,1)
  for(const slot of m.staffingSlotsForDay(day))for(let at=slot.start;at<slot.end;at+=30)assert.ok(available.filter(p=>{const t=m.shiftTemplate(next[p.id+'|'+day],day);return t.start<=at&&at<t.end}).length>=slot.minimum)
+})
+
+test('an eight-hour absence deducts eight hours of pay with no offset in gross',()=>{
+ const pay=m.payroll(m.initialRequests,0,'2026-10')
+ assert.equal(pay.absent,8);assert.equal(pay.unpaid,0)
+ assert.equal(pay.unpaidDeduction,8*pay.rate)
+ assert.equal(pay.gross,pay.earnedGross)
+ assert.equal(pay.net,Math.round((pay.gross-pay.withholding-8*pay.rate)*100)/100)
 })

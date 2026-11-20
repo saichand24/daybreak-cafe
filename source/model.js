@@ -271,7 +271,7 @@ export function payroll(requests,id,month,shifts=initialShifts,weekOffs={}){
  }
  const rate=staff[id].rate,tips=(base+overtime)*12,earnedGross=Math.round(((base+paidLeave)*rate+overtime*rate*1.5+tips)*100)/100
  const worked=base+overtime,basePay=base*rate,overtimePay=Math.round(overtime*rate*1.5*100)/100,totalUnpaid=unpaid+absent,totalUnpaidDays=unpaidDays+absentDays
- const unpaidDeduction=totalUnpaid*rate,withholding=Math.round(earnedGross*8)/100,gross=earnedGross+unpaidDeduction,deductions=withholding+unpaidDeduction
+ const unpaidDeduction=totalUnpaid*rate,withholding=Math.round(earnedGross*8)/100,gross=earnedGross,deductions=withholding+unpaidDeduction
  return {base,worked,basePay,overtime,overtimePay,paidLeave,paidLeaveDays,unpaid,unpaidDays,totalUnpaid,totalUnpaidDays,scheduled,absent,absentDays,rate,tips,earnedGross,unpaidDeduction,withholding,gross,deductions,net:Math.round((gross-deductions)*100)/100}
 }
 
