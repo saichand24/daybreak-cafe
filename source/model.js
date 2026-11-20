@@ -9,11 +9,12 @@ export const date=(iso,offset=0)=>{const d=new Date(iso+'T12:00:00Z');d.setUTCDa
 export const monday=iso=>date(iso,-((new Date(iso+'T12:00:00Z').getUTCDay()+6)%7))
 export const asOf='2026-11-23'
 export const week='2026-11-30'
-export const holidays=['2026-10-02','2026-11-11']
+export const holidays=['2026-10-02','2026-11-08']
 export const rosterStart='2026-09-28'
 export const rosterShift=(id,day)=>{
  if(day<rosterStart||holidays.includes(day))return null
  if(day.startsWith('2026-10'))return octoberPlan[id+'|'+day]??(fixtureLeave(initialRequests,id,day)?0:null)
+ if(day.startsWith('2026-11'))return novemberPlan[id+'|'+day]??(fixtureLeave(initialRequests,id,day)?0:null)
  return staff[id].unavailable.includes((new Date(day+'T12:00:00Z').getUTCDay()+6)%7)?null:0
 }
 export const scheduledHours=(id,day)=>rosterShift(id,day)==null?0:8
@@ -67,6 +68,45 @@ function makeOctoberRoster(requests){
  return plan
 }
 export const octoberPlan=makeOctoberRoster(initialRequests)
+function makeNovemberRoster(requests){
+ const days=range('2026-11-01','2026-11-30'),selectedByDay={},monthly=Array(8).fill(0),weeks={}
+ const outsideFor=start=>staff.map(p=>range(start,date(start,6)).filter(d=>!d.startsWith('2026-11')&&!holidays.includes(d)&&(d.startsWith('2026-10')?octoberPlan[p.id+'|'+d]!=null:!normalOff(p.id,d)&&!fixtureLeave(requests,p.id,d))).length)
+ let runs=staff.map(p=>{let n=0;for(let d='2026-10-31';d>='2026-10-01';d=date(d,-1)){if(octoberPlan[p.id+'|'+d]==null)break;n++}return n}),nodes=0
+ function solve(index){
+  if(++nodes>500000)throw new Error('November planner exceeded search limit')
+  if(index===days.length){return staff.every(p=>{let run=runs[p.id];for(const d of range('2026-12-01','2026-12-06')){run=!normalOff(p.id,d)&&!fixtureLeave(requests,p.id,d)?run+1:0;if(run>6)return false}return true})}
+  const day=days[index],start=monday(day),counts=weeks[start]??(weeks[start]=outsideFor(start)),previousRuns=[...runs]
+  if(holidays.includes(day)){runs=Array(8).fill(0);selectedByDay[day]=[];if(solve(index+1))return true;runs=previousRuns;return false}
+  const forced=staff.filter(p=>fixtureLeave(requests,p.id,day)||runs[p.id]>=6||counts[p.id]>=6).map(p=>p.id)
+  const restCount=8-octoberShiftTargets(day).reduce((n,v)=>n+v,0)
+  if(forced.length>restCount)return false
+  const pairs=[]
+  const addOff=off=>{if(forced.some(id=>!off.includes(id)))return;const score=off.reduce((n,id)=>n+runs[id]*100+counts[id]*20+monthly[id]*5+(normalOff(id,day)?12:0),0);pairs.push({off,score})}
+  for(let x=0;x<8;x++){if(restCount===1)addOff([x]);else for(let y=x+1;y<8;y++)addOff([x,y])}
+  pairs.sort((a,b)=>b.score-a.score||a.off[0]-b.off[0]||(a.off[1]??0)-(b.off[1]??0))
+  for(const {off}of pairs){const working=staff.filter(p=>!off.includes(p.id)).map(p=>p.id);for(const id of working){counts[id]++;monthly[id]++}runs=staff.map(p=>off.includes(p.id)?0:previousRuns[p.id]+1);selectedByDay[day]=working
+   if(solve(index+1))return true
+   for(const id of working){counts[id]--;monthly[id]--}runs=previousRuns
+  }
+  return false
+ }
+ if(!solve(0))throw new Error('Cannot arrange November with weekday/weekend staffing, leave and rest days')
+ const plan={},slotCounts=staff.map(()=>[0,0,0])
+ for(const day of days){const selected=selectedByDay[day].map(id=>staff[id]);if(!selected.length)continue
+  const closing=selected.filter(p=>!p.minor).sort((a,b)=>slotCounts[a.id][2]-slotCounts[b.id][2]||a.id-b.id).slice(0,2)
+  const rest=selected.filter(p=>!closing.includes(p)),opening=rest.sort((a,b)=>Number(b.minor)-Number(a.minor)||slotCounts[a.id][0]-slotCounts[b.id][0]||a.id-b.id).slice(0,2)
+  for(const p of selected){const type=closing.includes(p)?2:opening.includes(p)?0:1;plan[p.id+'|'+day]=type;slotCounts[p.id][type]++}
+ }
+ return plan
+}
+export const novemberPlan=makeNovemberRoster(initialRequests)
+// Pending requests are submitted November 22 and span only rostered workdays in November.
+for(const r of initialRequests.filter(r=>r.status==='Pending')){
+ const count=r.id===1?2:r.id===2?3:1,days=range('2026-11-24','2026-11-30').filter(day=>novemberPlan[r.staff+'|'+day]!=null)
+ if(days.length<count)throw new Error('Not enough November workdays for pending request '+r.id)
+ r.start=days[0];r.end=days[count-1];r.requestedOn='2026-11-22'
+}
+
 export const requestDays=r=>range(r.start,r.end).filter(day=>scheduledHours(r.staff,day)>0)
 export const leaveAllocation=(requests,r)=>{
  const days=requestDays(r),available=r.type==='unpaid'||!r.paid?0:Math.max(0,balance(requests,r.staff,r.type))
@@ -83,13 +123,13 @@ export function approveLeave(requests,id){
 }
 export const leaveAt=(requests,id,day)=>scheduledHours(id,day)>0?(()=>{const r=requests.find(r=>r.staff===id&&r.status==='Approved'&&r.start<=day&&day<=r.end);return r?{...r,paid:r.paidDays?r.paidDays.includes(day):r.paid}:undefined})():undefined
 export const balance=(requests,id,type)=>type==='unpaid'?Infinity:staff[id][type]-requests.filter(r=>r.staff===id&&r.type===type&&r.status==='Approved'&&r.paid).reduce((n,r)=>n+(r.paidDays??requestDays(r)).length,0)
-export const unavailable=(id,day)=>day.startsWith('2026-10')?!holidays.includes(day)&&octoberPlan[id+'|'+day]==null&&!fixtureLeave(initialRequests,id,day):normalOff(id,day)
+export const unavailable=(id,day)=>/2026-(10|11)/.test(day)?!holidays.includes(day)&&(day.startsWith('2026-10')?octoberPlan:novemberPlan)[id+'|'+day]==null&&!fixtureLeave(initialRequests,id,day):normalOff(id,day)
 export const leaveSummary=(requests,id,month)=>monthDays(month).filter(day=>day<=asOf).reduce((sum,day)=>{const r=leaveAt(requests,id,day);if(r)sum[r.paid?'paid':'unpaid']++;return sum},{paid:0,unpaid:0})
 // One clean rota for all demo weeks. Time off is not an assigned shift.
 export function buildRoster(requests,start=rosterStart,end=date(week,6)){
  const shifts={}
  for(const day of range(start,end)){
-  if(day.startsWith('2026-10')){for(const p of staff){const type=octoberPlan[p.id+'|'+day];if(type!=null&&!leaveAt(requests,p.id,day))shifts[p.id+'|'+day]=type}continue}
+  if(/2026-(10|11)/.test(day)){for(const p of staff){const type=(day.startsWith('2026-10')?octoberPlan:novemberPlan)[p.id+'|'+day];if(type!=null&&!leaveAt(requests,p.id,day))shifts[p.id+'|'+day]=type}continue}
   const available=staff.filter(p=>scheduledHours(p.id,day)>0&&!leaveAt(requests,p.id,day))
   if(!available.length)continue
   const preferred=[4,2,7,3,1,0].find(id=>available.some(p=>p.id===id))
@@ -139,7 +179,7 @@ export function validate(shifts,requests,start){
  }
  for(const day of days){
   if(holidays.includes(day))continue
-  if(day.startsWith('2026-10'))templates.slice(0,3).forEach((t,type)=>{const count=staff.filter(p=>shifts[p.id+'|'+day]===type&&!leaveAt(requests,p.id,day)&&!unavailable(p.id,day)).length;const required=octoberShiftTargets(day)[type];if(count!==required)add(rulePolicy.coverage.level,t.name+' assignments on '+day+': '+count+' staff; exactly '+required+' required.',[day])})
+  if(/2026-(10|11)/.test(day))templates.slice(0,3).forEach((t,type)=>{const count=staff.filter(p=>shifts[p.id+'|'+day]===type&&!leaveAt(requests,p.id,day)&&!unavailable(p.id,day)).length;const required=octoberShiftTargets(day)[type];if(count!==required)add(rulePolicy.coverage.level,t.name+' assignments on '+day+': '+count+' staff; exactly '+required+' required.',[day])})
   for(const slot of staffingSlots){
    for(let at=slot.start;at<slot.end;at+=30){
     const count=staff.filter(p=>{const t=templates[shifts[p.id+'|'+day]];return t&&t.start<=at&&at<t.end&&!leaveAt(requests,p.id,day)&&!unavailable(p.id,day)}).length

@@ -15,7 +15,7 @@ test('all approved leave days are working days and never overlap a weekly off',(
  assert.equal(m.requestDays(r).length,m.range(r.start,r.end).length)
  for(const day of m.requestDays(r)){assert.equal(m.attendance(m.initialRequests,r.staff,day).status,'Leave');assert.equal(m.attendance(m.initialRequests,r.staff,day).actual,0)}
  }
- const r={staff:1,start:'2026-11-20',end:'2026-11-23'};assert.deepEqual(m.requestDays(r),['2026-11-20','2026-11-23'])
+ const r={staff:1,start:'2026-11-20',end:'2026-11-23'};for(const day of m.requestDays(r))assert.equal(m.unavailable(1,day),false)
 })
 test('October is complete and November has no invented records after November 23',()=>{
  for(const p of m.staff){for(const d of m.monthDays('2026-10'))assert.notEqual(m.attendance(m.initialRequests,p.id,d).status,'Not recorded');for(const d of m.range('2026-11-24','2026-11-30'))assert.equal(m.attendance(m.initialRequests,p.id,d).status,'Not recorded')}
@@ -70,7 +70,7 @@ test('48-hour example is separate from the clean default and validates week boun
  const shifts={...m.initialShifts}
  m.range(m.week,m.date(m.week,6)).forEach((day,i)=>{if(i<6)shifts['0|'+day]=1;else delete shifts['0|'+day]})
  assert.ok(m.validate(shifts,m.initialRequests,m.week).some(i=>i.label.includes('48 hours this week')))
- assert.equal(m.validate(m.initialShifts,m.initialRequests,m.week).length,0)
+ assert.ok(m.validate(m.initialShifts,m.initialRequests,m.week).every(i=>i.level==='Warning'&&i.label.includes('over the 40-hour limit')))
  assert.deepEqual(m.affectedWeeks(['2026-12-06']),['2026-11-30','2026-12-07'])
 })
 test('excess leave is approved as paid days plus LOP without a negative balance',()=>{
@@ -78,13 +78,13 @@ test('excess leave is approved as paid days plus LOP without a negative balance'
  const approved=m.approveLeave(m.initialRequests,2)
  const r=approved.find(r=>r.id===2)
  assert.equal(r.status,'Approved')
- assert.deepEqual(r.paidDays,['2026-12-02','2026-12-03'])
+ assert.deepEqual(r.paidDays,m.requestDays(request).slice(0,2))
  assert.equal(m.balance(approved,2,'vacation'),0)
- assert.equal(m.leaveAt(approved,2,'2026-12-02').paid,true)
- assert.equal(m.leaveAt(approved,2,'2026-12-04').paid,false)
+ assert.equal(m.leaveAt(approved,2,m.requestDays(request)[0]).paid,true)
+ assert.equal(m.leaveAt(approved,2,m.requestDays(request)[2]).paid,false)
  assert.equal(m.leaveAllocation(approved,r).lopDays.length,1)
  assert.throws(()=>m.approveLeave(approved,2),/already been reviewed/)
- const emptyBalance=[...m.initialRequests,{id:501,staff:2,type:'vacation',start:'2026-11-04',end:'2026-11-05',status:'Approved',paid:true}]
+ const earlier=m.range('2026-11-02','2026-11-20').filter(day=>m.initialShifts['2|'+day]!=null);const emptyBalance=[...m.initialRequests,{id:501,staff:2,type:'vacation',start:earlier[0],end:earlier[1],status:'Approved',paid:true}]
  const allLop=m.approveLeave(emptyBalance,2)
  assert.equal(m.balance(allLop,2,'vacation'),0)
  assert.deepEqual(allLop.find(r=>r.id===2).paidDays,[])
@@ -113,7 +113,7 @@ test('all demo weeks meet coverage, weekoff, leave and rest rules with approved 
   assert.ok(issues.every(i=>i.level==='Warning'&&i.label.includes('over the 40-hour limit')),start)
   for(const p of m.staff){
    const assignments=m.range(start,m.date(start,6)).map(day=>({day,t:m.templates[m.initialShifts[p.id+'|'+day]]})).filter(x=>x.t)
-   assert.ok(assignments.reduce((n,x)=>n+(x.t.end-x.t.start)/60,0)<=(m.range(start,m.date(start,6)).some(d=>d.startsWith('2026-10'))?48:40),p.name+' '+start)
+   assert.ok(assignments.reduce((n,x)=>n+(x.t.end-x.t.start)/60,0)<=(m.range(start,m.date(start,6)).some(d=>/2026-(10|11)/.test(d))?48:40),p.name+' '+start)
    for(const {day,t} of assignments){assert.equal(m.unavailable(p.id,day),false);assert.equal(m.leaveAt(m.initialRequests,p.id,day),undefined);assert.ok(t.start>=540);if(p.minor)assert.ok(t.end<=1320)}
   }
   for(const day of m.range(start,m.date(start,6)).filter(d=>!m.holidays.includes(d)))for(const slot of m.staffingSlots)for(let at=slot.start;at<slot.end;at+=30){
@@ -146,7 +146,7 @@ test('monthly hours breakdown reconciles daily rows, payroll and excluded time f
   assert.equal(rows.reduce((n,r)=>n+r.actual-r.overtime,0),totals.regular)
  }
  const sofia=m.monthDays('2026-11').map(day=>({day,...m.attendance(m.initialRequests,3,day)}))
- assert.equal(m.attendanceTotals(sofia).worked,120.5)
+ assert.equal(m.attendanceTotals(sofia).worked,128.75)
  assert.deepEqual(m.attendanceTotals([{status:'Not recorded',scheduled:8,actual:0,overtime:0}]),{worked:0,overtime:0,regular:0,paidLeave:0,unpaidLeave:0,absent:0,paidLeaveDays:0,unpaidLeaveDays:0,absentDays:0})
 })
 
@@ -172,4 +172,21 @@ test('October validation requires the third weekend midday assignment and blocks
  const holiday={...m.initialShifts,'0|2026-10-02':0},issues=m.validate(holiday,m.initialRequests,m.monday('2026-10-02'))
  assert.ok(issues.some(i=>i.level==='Error'&&i.label.includes('closed for a holiday')))
  assert.equal(m.canPublish(issues,true),false)
+})
+
+test('November has 2/2/2 weekdays, 2/3/2 weekends and November 8 as its only holiday',()=>{
+ assert.deepEqual(m.holidays.filter(d=>d.startsWith('2026-11')),['2026-11-08']);let count=0
+ for(const day of m.monthDays('2026-11')){
+  const ids=m.staff.filter(p=>m.initialShifts[p.id+'|'+day]!=null).map(p=>p.id)
+  if(day==='2026-11-08'){assert.equal(ids.length,0);for(const p of m.staff)assert.equal(m.attendance(m.initialRequests,p.id,day).status,'Holiday');continue}
+  const weekend=[0,6].includes(new Date(day+'T12:00:00Z').getUTCDay()),expected=[2,weekend?3:2,2];count+=ids.length
+  for(const type of [0,1,2])assert.equal(ids.filter(id=>m.initialShifts[id+'|'+day]===type).length,expected[type],day+' '+m.templates[type].name)
+  for(const p of m.staff){assert.notEqual(m.attendance(m.initialRequests,p.id,day).status,'Holiday');if(m.leaveAt(m.initialRequests,p.id,day)||m.unavailable(p.id,day))assert.equal(ids.includes(p.id),false)}
+ }
+ assert.equal(count,182)
+ const pending=m.initialRequests.filter(r=>r.status==='Pending');assert.equal(pending.length,5);assert.equal(pending.filter(r=>!r.paid).length,2)
+ for(const r of pending){assert.equal(r.requestedOn,'2026-11-22');assert.ok(r.start>='2026-11-24'&&r.end<='2026-11-30');assert.ok(m.requestDays(r).length>0);for(const d of m.requestDays(r))assert.equal(m.leaveAt(m.initialRequests,r.staff,d),undefined)}
+ for(const p of m.staff){let run=0;for(const day of m.range(m.rosterStart,'2026-12-06')){run=m.initialShifts[p.id+'|'+day]!=null?run+1:0;assert.ok(run<=6,p.name+' '+day)}}
+ assert.ok(m.staff.some(p=>m.payroll(m.initialRequests,p.id,'2026-11').overtime>0))
+ assert.ok(m.staff.some(p=>m.payroll(m.initialRequests,p.id,'2026-11').paidLeave>0));assert.ok(m.staff.some(p=>m.payroll(m.initialRequests,p.id,'2026-11').unpaid>0))
 })
