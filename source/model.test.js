@@ -4,7 +4,7 @@ import * as m from './model.js'
 test('every employee and every recorded day matches the roster and clock records',()=>{
  for(const p of m.staff)for(const day of m.range('2026-10-01',m.asOf)){
  const r=m.attendance(m.initialRequests,p.id,day),t=m.templates[m.initialShifts[p.id+'|'+day]]
- assert.equal(r.scheduled,t?(t.end-t.start)/60:0,p.name+' '+day)
+ assert.equal(r.scheduled,r.status==='Leave'?m.scheduledHours(p.id,day):t?(t.end-t.start)/60:0,p.name+' '+day)
  if(r.clockIn!=null)assert.equal(r.actual,(r.clockOut-r.clockIn)/60)
  if(r.status==='Off'){assert.equal(r.actual,0);assert.equal(r.scheduled,0)}
  if(p.minor&&r.clockOut)assert.ok(r.clockOut<=1320)
@@ -43,7 +43,9 @@ test('unpaid leave reduces earnings once without consuming vacation or sick bala
  assert.equal(m.balance(before,1,'vacation'),m.balance(after,1,'vacation'))
  assert.equal(m.balance(before,1,'sick'),m.balance(after,1,'sick'))
  assert.equal(m.payroll(after,1,'2026-10').unpaid,8)
- assert.ok(m.payroll(after,1,'2026-10').net<m.payroll(before,1,'2026-10').net)
+ const paid=after.map(r=>r.id===201?{...r,paid:true}:r)
+ assert.equal(m.payroll(paid,1,'2026-10').gross-m.payroll(after,1,'2026-10').gross,8*m.staff[1].rate)
+ assert.equal(m.payroll(after,1,'2026-10').tips,m.payroll(paid,1,'2026-10').tips)
 })
 test('paid vacation approval deducts only workdays and preserves base earnings',()=>{
  const r=m.initialRequests[0],approved=m.initialRequests.map(x=>x.id===1?{...x,status:'Approved'}:x)
@@ -54,17 +56,21 @@ test('paid vacation approval deducts only workdays and preserves base earnings',
  assert.equal(m.requestDays(m.initialRequests[1]).length,3)
 })
 test('rest and minor errors block publishing; exact eight hours passes',()=>{
- const shifts={'7|2026-12-05':2,'7|2026-12-06':0,'5|2026-12-05':2}
- const issues=m.validate(shifts,[],m.week)
- assert.ok(issues.some(i=>i.label.includes('7.5 hours of rest')))
- assert.ok(issues.some(i=>i.label.includes('under 18')))
- assert.equal(m.canPublish(issues,true),false)
- m.templates.push({name:'Boundary',start:390,end:870})
- try{assert.ok(!m.validate({'7|2026-12-05':2,'7|2026-12-06':4},[],m.week).some(i=>i.level==='Error'))}finally{m.templates.pop()}
- const warnings=issues.filter(i=>i.level==='Warning');assert.equal(m.canPublish(warnings,false),false);assert.equal(m.canPublish(warnings,true),true)
+ m.templates.push({name:'Late example',start:900,end:1350},{name:'Early example',start:360,end:840},{name:'Eight-hour boundary',start:390,end:870})
+ try{
+  const issues=m.validate({'7|2026-12-05':3,'7|2026-12-06':4,'5|2026-12-05':3},[],m.week)
+  assert.ok(issues.some(i=>i.label.includes('7.5 hours of rest')))
+  assert.ok(issues.some(i=>i.label.includes('under 18')))
+  assert.equal(m.canPublish(issues,true),false)
+  assert.ok(!m.validate({'7|2026-12-05':3,'7|2026-12-06':5},[],m.week).some(i=>i.level==='Error'))
+  const warnings=issues.filter(i=>i.level==='Warning');assert.equal(m.canPublish(warnings,false),false);assert.equal(m.canPublish(warnings,true),true)
+ }finally{m.templates.splice(3)}
 })
-test('48-hour example and weekly boundary invalidation remain available',()=>{
- assert.ok(m.validate(m.initialShifts,m.initialRequests,m.week).some(i=>i.label.includes('48 hours this week')))
+test('48-hour example is separate from the clean default and validates week boundaries',()=>{
+ const shifts={...m.initialShifts}
+ m.range(m.week,m.date(m.week,6)).forEach((day,i)=>{if(i<6)shifts['0|'+day]=1;else delete shifts['0|'+day]})
+ assert.ok(m.validate(shifts,m.initialRequests,m.week).some(i=>i.label.includes('48 hours this week')))
+ assert.equal(m.validate(m.initialShifts,m.initialRequests,m.week).length,0)
  assert.deepEqual(m.affectedWeeks(['2026-12-06']),['2026-11-30','2026-12-07'])
 })
 test('excess leave is approved as paid days plus LOP without a negative balance',()=>{
@@ -99,4 +105,33 @@ test('mixed paid and LOP days reconcile with attendance, usage and payslip',()=>
  assert.throws(()=>m.approveLeave(overlap,503),/overlap/)
  const off=before.concat({...request,id:504,start:'2026-10-12',end:'2026-10-13'})
  assert.throws(()=>m.approveLeave(off,504),/no scheduled working days/)
+})
+
+test('all ten demo weeks meet coverage, availability, leave, hours and rest rules',()=>{
+ for(let start=m.rosterStart;start<=m.week;start=m.date(start,7)){
+  assert.deepEqual(m.validate(m.initialShifts,m.initialRequests,start),[],start)
+  for(const p of m.staff){
+   const assignments=m.range(start,m.date(start,6)).map(day=>({day,t:m.templates[m.initialShifts[p.id+'|'+day]]})).filter(x=>x.t)
+   assert.ok(assignments.reduce((n,x)=>n+(x.t.end-x.t.start)/60,0)<=40,p.name+' '+start)
+   for(const {day,t} of assignments){assert.equal(m.unavailable(p.id,day),false);assert.equal(m.leaveAt(m.initialRequests,p.id,day),undefined);assert.ok(t.start>=540);if(p.minor)assert.ok(t.end<=1320)}
+  }
+  for(const day of m.range(start,m.date(start,6)).filter(d=>!m.holidays.includes(d)))for(const slot of m.staffingSlots)for(let at=slot.start;at<slot.end;at+=30){
+   const count=m.staff.filter(p=>{const t=m.templates[m.initialShifts[p.id+'|'+day]];return t&&t.start<=at&&t.end>at}).length
+   assert.ok(count>=slot.minimum,day+' '+m.time(at))
+  }
+ }
+})
+test('past roster edits update scheduled hours without changing recorded clocks or pay',()=>{
+ const day='2026-10-01',before=m.attendance(m.initialRequests,0,day),shifts={...m.initialShifts,'0|2026-10-01':2}
+ const after=m.attendance(m.initialRequests,0,day,shifts)
+ assert.equal(after.clockIn,before.clockIn);assert.equal(after.clockOut,before.clockOut)
+ delete shifts['0|'+day]
+ assert.equal(m.attendance(m.initialRequests,0,day,shifts).scheduled,0)
+ assert.equal(m.attendance(m.initialRequests,0,day,shifts).actual,before.actual)
+ assert.equal(m.payroll(m.initialRequests,0,'2026-10',shifts).net,m.payroll(m.initialRequests,0,'2026-10').net)
+})
+test('five upcoming requests remain pending, including two unpaid requests',()=>{
+ const pending=m.initialRequests.filter(r=>r.status==='Pending')
+ assert.equal(pending.length,5);assert.equal(pending.filter(r=>!r.paid).length,2)
+ for(const r of pending)for(const d of m.requestDays(r))assert.ok(m.scheduledHours(r.staff,d)>0)
 })

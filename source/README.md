@@ -1,33 +1,41 @@
-# Daybreak Cafe - reconciled presentation data
+# Daybreak Cafe
+
+A React mock-data prototype for cafe scheduling, attendance, leave and payroll.
 
 ## Setup
 
-Run npm ci, npm run dev. Run npm test and npm run build to validate and produce dist. The static build works on GitHub Pages with relative asset paths.
+Run `npm ci`, then `npm run dev`. Use `npm test` for the data and rule tests and `npm run build` for the production build. GitHub Pages serves `dist` using relative asset paths.
 
-## Reporting periods
+## Reporting dates
 
-All records are fictional. The demo reporting date is 23 November 2026, chosen for the presentation. October is complete. November attendance is available through the 23rd; later dates are explicitly Not recorded. October is the default released payslip month. November payslips are unavailable until that payroll period closes. Attendance and payslips have independent month selectors.
+The fictional reporting date is 23 November 2026. October attendance and payslips are complete. November attendance runs through the 23rd, and later days say Not recorded. November payslips are not released. Attendance and payslips have separate month selectors.
 
-## One recorded roster
+## Clean roster and staffing policy
 
-Every historical scheduled hour comes from the same recorded 09:00-17:00 roster displayed in Schedule. Maya works Monday-Saturday. Other staff have two weekly offs staggered across the week; Amara and Noah have weekends off. This preserves staffing on weekends. Clock records include explicit 15-minute late arrivals, absences and occasional extra hours. Clock-out never exceeds 18:00 in the recorded fixtures, including for minors. Holidays are October 2 and November 11 in this mock dataset; these have no scheduled hours. This is a demo calendar and payroll policy, not an Indian statutory payroll implementation.
+All eight employees have five available workdays per normal week, at eight scheduled hours per day. Weekly offs are staggered. Maya, Amara and Noah are off Saturday/Sunday; Leo and Jules Monday/Tuesday; Sofia Tuesday/Wednesday; Isla Wednesday/Thursday; Finn Thursday/Friday.
 
-Opening coverage is sampled at 09:00, lunch at 12:00 and closing at 21:00. The future draft includes assigned closing coverage.
+Templates are Opening 09:00-17:00, Midday 10:00-18:00 and Closing 13:00-21:00. A consistent adult closing assignment is selected from available staff. Both minors have opening assignments. Approved leave and weekly offs receive no shift. Sick and unpaid historical examples are staggered so they do not create staffing gaps.
 
-The scheduler opens on next week, November 30-December 6. That draft deliberately includes minor/rest/staffing/weekly-hour examples. Its shift templates can differ from recorded shifts because it is a future plan. Dates through November 23 are locked; changing a future draft cannot rewrite completed attendance or October pay.
+Required staffing is 1 from 09:00-11:00, 3 from 11:00-15:00, 2 from 15:00-17:00 and 1 from 17:00-21:00. Coverage is checked every 30 minutes, including slot boundaries. October 2 and November 11 are closed mock holidays. These hours and staffing levels are documented design assumptions, not legal requirements.
 
-## Leave policy
+Every default week from September 28 through December 6 passes all checks with no errors or warnings. The 48-hour example is opt-in and intentionally creates warnings. Restore planned week replaces that selected week with the clean rota for current approved leave; review its checks because several simultaneous approvals may require extra staffing.
 
-Sick and vacation have separate opening balances at October 1. Approved paid leave consumes only scheduled working days from its selected balance. Unpaid leave has its own type and does not consume paid balances. Weekly offs and holidays do not count as leave days. The mock requests include paid sick leave, paid vacation and explicitly unpaid personal leave. Amara's paid request is December 2-3, both working days. Leo asks for December 2-4 against two vacation days; approval stays enabled. Clicking Approve opens a confirmation explaining that two working days will be paid and one will be Loss of Pay (LOP). Confirmation stores the paid dates on the request; only those dates consume vacation balance. Excess dates are unpaid in attendance and payroll. Paid days are allocated chronologically before LOP. Overlapping approved leave and requests with no working days remain blocked with explanations. Attendance and payroll usage covers October and November through the reporting date. The Leave tab retains the original simple Sick/Vacation balance cards. Opening balances less approved paid working days reconcile to available balances.
+## Editable schedule and recorded attendance
 
-## Payroll and attendance
+All dates can be edited, copied and published. There is no date lock. Validation runs for every selected week. Edits update scheduled hours in attendance, while recorded clock times remain unchanged. Payroll follows recorded actual hours, approved paid leave and weekly overtime, not a rewritten historical clock record. The Home Week status card was removed; the selected schedule still shows Draft or Published.
 
-Both read the same clock records and approved leave. Attendance shows scheduled, actual and weekly overtime hours, with hours/minutes displayed instead of decimal hours. Overtime is actual work over 40 hours in a Monday-Sunday week, paid at 1.5x, including earlier days when a week crosses a month boundary. Paid leave does not count toward worked-hour overtime. Unpaid scheduled hours earn no pay; the payslip displays days, hours and the value not earned, as a zero-value explanatory line to avoid double deduction. Absences and lateness similarly do not earn worked pay. Tips are mock INR 12 per worked hour and deductions are illustrative 8% withholding. Hourly rates are INR 160-230. Holidays have no paid-hours allowance in this mock policy.
+The mock clocks use each employee's rostered shift start/end, occasional 15-minute lateness, absence and an extra hour. Actual hours above 40 in a Monday-Sunday week earn 1.5x, including weeks crossing month boundaries. Paid leave does not count as worked overtime. Minors' default clocks end by 18:00.
 
-## Persistence and tests
+## Leave and LOP
 
-The reconciled dataset uses a new local-storage namespace, so stale demo records cannot mix with the new fixtures. Eleven automated tests audit all eight staff, every October date and every November date through the 23rd, roster/clock agreement, leave on working days, weekly overtime boundaries, pay arithmetic and publish gating. Full real-device and screen-reader validation is separate from these data checks.
+Leave balances appear above requests. Five upcoming requests remain Pending for the manager, including Sofia's unpaid request on December 3 and Jules's on December 4. Approval is never automatic. Leo requests three vacation workdays against two available. Approve opens a confirmation showing two paid dates and one Loss of Pay date. Confirming consumes only the paid balance, with excess leave unpaid. Dates are allocated chronologically. Overlaps and requests without workdays remain blocked with explanations. Weekly offs and holidays do not consume leave.
 
-## Manager approval demo
+Historical approved leave is marked on the schedule and attendance. Paid days contribute their scheduled eight hours to earnings; unpaid days earn no pay and do not consume sick/vacation balance. Payslips show unpaid days, hours and value not earned without deducting it twice.
 
-Five upcoming requests start Pending: three paid requests and two explicit unpaid requests (Sofia, 3 December; Jules, 4 December). The manager reviews and confirms approval. The Leave tab puts balances above requests. Its new leave-only storage key resets prior demo approvals once while preserving saved schedules. Draft on Home means the planning week has not been published. Scheduler weekly-off overlays use Time-off wording.
+## Payroll policy
+
+Rates are illustrative INR 160-230/hour. Tips are INR 12 per worked hour. Deductions are an illustrative 8% withholding. The mock holiday policy has no paid holiday allowance. This is a take-home prototype, not statutory Indian payroll software.
+
+## Persistence and checks
+
+The clean-roster storage namespace resets older inconsistent demo schedules and requests once. Subsequent manager edits persist locally. Fourteen automated tests verify all employees and all demo weeks, half-hour coverage, availability, leave, weekly limits, minor/rest rules, overtime boundaries, monthly reconciliation, past-date edits, pending requests, LOP splits and publish gating. Default leave requests are not approved during browser verification.
