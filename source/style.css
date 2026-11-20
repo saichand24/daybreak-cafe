@@ -49,3 +49,5 @@
 @media(min-width:651px) and (max-width:1000px){.brand.brand-home{gap:8px;margin-left:0;margin-right:0}.brand-home>span:first-child{width:32px;height:35px}.brand>.brand-name{font-size:18px}.brand-home small{font-size:8px;letter-spacing:.08em}}
 
 .shift-coverage td{font-size:10px;line-height:1.6;background:#f4f7f0}.shift-coverage th{font-size:11px;background:#f4f7f0}
+
+.holiday-note{display:block;font-size:10px;color:#345584;margin-top:3px}

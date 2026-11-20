@@ -150,16 +150,26 @@ test('monthly hours breakdown reconciles daily rows, payroll and excluded time f
  assert.deepEqual(m.attendanceTotals([{status:'Not recorded',scheduled:8,actual:0,overtime:0}]),{worked:0,overtime:0,regular:0,paidLeave:0,unpaidLeave:0,absent:0,paidLeaveDays:0,unpaidLeaveDays:0,absentDays:0})
 })
 
-test('October has exactly two of each shift on every open day and closes October 2',()=>{
+test('October has 2/2/2 weekdays, 2/3/2 weekends and a closed October 2 holiday',()=>{
  let assignments=0
  for(const day of m.monthDays('2026-10')){
   const ids=m.staff.filter(p=>m.initialShifts[p.id+'|'+day]!=null).map(p=>p.id)
   if(day==='2026-10-02'){assert.equal(ids.length,0);for(const p of m.staff)assert.equal(m.attendance(m.initialRequests,p.id,day).status,'Holiday');continue}
-  assert.equal(ids.length,6,day);assignments+=ids.length
-  for(const type of [0,1,2])assert.equal(ids.filter(id=>m.initialShifts[id+'|'+day]===type).length,2,day+' '+m.templates[type].name)
+  const weekend=[0,6].includes(new Date(day+'T12:00:00Z').getUTCDay()),expected=[2,weekend?3:2,2]
+  assert.equal(ids.length,weekend?7:6,day);assignments+=ids.length
+  for(const type of [0,1,2])assert.equal(ids.filter(id=>m.initialShifts[id+'|'+day]===type).length,expected[type],day+' '+m.templates[type].name)
   for(const p of m.staff){const assigned=ids.includes(p.id),leave=m.leaveAt(m.initialRequests,p.id,day);assert.ok(assigned||leave||m.unavailable(p.id,day),p.name+' '+day);if(leave||m.unavailable(p.id,day))assert.equal(assigned,false)}
  }
- assert.equal(assignments,180)
+ assert.equal(assignments,189)
  for(const p of m.staff){let run=0;for(const day of m.range(m.rosterStart,'2026-11-01')){run=m.initialShifts[p.id+'|'+day]!=null?run+1:0;assert.ok(run<=6,p.name+' '+day)}}
  const issues=m.validate(m.initialShifts,m.initialRequests,'2026-10-05');assert.ok(issues.length>0);assert.equal(m.canPublish(issues,false),false);assert.equal(m.canPublish(issues,true),true)
+})
+
+test('October validation requires the third weekend midday assignment and blocks holiday work',()=>{
+ const weekend='2026-10-03',shifts={...m.initialShifts},id=m.staff.find(p=>shifts[p.id+'|'+weekend]===1).id
+ delete shifts[id+'|'+weekend]
+ assert.ok(m.validate(shifts,m.initialRequests,m.monday(weekend)).some(i=>i.label.includes('Midday assignments on '+weekend)&&i.label.includes('exactly 3 required')))
+ const holiday={...m.initialShifts,'0|2026-10-02':0},issues=m.validate(holiday,m.initialRequests,m.monday('2026-10-02'))
+ assert.ok(issues.some(i=>i.level==='Error'&&i.label.includes('closed for a holiday')))
+ assert.equal(m.canPublish(issues,true),false)
 })
