@@ -66,7 +66,7 @@ test('rest and minor errors block publishing; exact eight hours passes',()=>{
   const warnings=issues.filter(i=>i.level==='Warning');assert.equal(m.canPublish(warnings,false),false);assert.equal(m.canPublish(warnings,true),true)
  }finally{m.templates.splice(3)}
 })
-test('48-hour example is separate from the clean default and validates week boundaries',()=>{
+test('weekly-hours validation flags a manually assigned 48-hour week and respects week boundaries',()=>{
  const shifts={...m.initialShifts}
  m.range(m.week,m.date(m.week,6)).forEach((day,i)=>{if(i<6)shifts['0|'+day]=1;else delete shifts['0|'+day]})
  assert.ok(m.validate(shifts,m.initialRequests,m.week).some(i=>i.label.includes('48 hours this week')))
