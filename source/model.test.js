@@ -27,8 +27,8 @@ test('attendance overtime and payslip hours reconcile for every employee and mon
  assert.equal(pay.overtime,rows.reduce((n,r)=>n+r.overtime,0))
  assert.equal(pay.paidLeave,rows.filter(r=>r.status==='Leave'&&r.paid).reduce((n,r)=>n+r.scheduled,0))
  assert.equal(pay.unpaid,rows.filter(r=>r.status==='Leave'&&!r.paid).reduce((n,r)=>n+r.scheduled,0))
- assert.equal(pay.gross,(pay.base+pay.paidLeave)*pay.rate+pay.overtime*pay.rate*1.5+pay.tips)
- assert.equal(pay.net,pay.gross-pay.deductions)
+ assert.equal(pay.gross,(pay.base+pay.paidLeave+pay.unpaid)*pay.rate+pay.overtime*pay.rate*1.5+pay.tips)
+ assert.equal(pay.net,Math.round((pay.gross-pay.deductions)*100)/100)
  }
 })
 test('overtime uses actual weekly hours above 40, including prior month days',()=>{
@@ -44,7 +44,7 @@ test('unpaid leave reduces earnings once without consuming vacation or sick bala
  assert.equal(m.balance(before,1,'sick'),m.balance(after,1,'sick'))
  assert.equal(m.payroll(after,1,'2026-10').unpaid,8)
  const paid=after.map(r=>r.id===201?{...r,paid:true}:r)
- assert.equal(m.payroll(paid,1,'2026-10').gross-m.payroll(after,1,'2026-10').gross,8*m.staff[1].rate)
+ assert.equal(m.payroll(paid,1,'2026-10').earnedGross-m.payroll(after,1,'2026-10').earnedGross,8*m.staff[1].rate)
  assert.equal(m.payroll(after,1,'2026-10').tips,m.payroll(paid,1,'2026-10').tips)
 })
 test('paid vacation approval deducts only workdays and preserves base earnings',()=>{
@@ -100,7 +100,7 @@ test('mixed paid and LOP days reconcile with attendance, usage and payslip',()=>
  assert.equal(pay.unpaid,(requested.length-2)*8)
  assert.equal(pay.unpaidDays,requested.length-2)
  assert.deepEqual(m.leaveSummary(approved,2,'2026-10'),{paid:2,unpaid:requested.length-2})
- assert.equal(pay.gross,(pay.base+16)*pay.rate+pay.overtime*pay.rate*1.5+pay.tips)
+ assert.equal(pay.gross,(pay.base+16+pay.unpaid)*pay.rate+pay.overtime*pay.rate*1.5+pay.tips)
  const overlap=approved.concat({...request,id:503,start:requested[0],end:requested[0]})
  assert.throws(()=>m.approveLeave(overlap,503),/overlap/)
  const offDay=m.monthDays('2026-10').find(d=>m.unavailable(2,d));const off=before.concat({...request,id:504,start:offDay,end:offDay})
@@ -262,7 +262,27 @@ test('payslips distinguish absence from unpaid leave and exclude both from worke
   assert.equal(pay.absent,rows.filter(r=>r.status==='Absent').reduce((n,r)=>n+r.scheduled,0))
   assert.equal(pay.unpaidDays,rows.filter(r=>r.status==='Leave'&&!r.paid&&!r.future).length)
   for(const r of rows.filter(r=>r.status==='Absent'))assert.equal(r.actual,0)
-  assert.equal(pay.gross,(pay.base+pay.paidLeave)*pay.rate+pay.overtime*pay.rate*1.5+pay.tips)
+  assert.equal(pay.gross,(pay.base+pay.paidLeave+pay.unpaid)*pay.rate+pay.overtime*pay.rate*1.5+pay.tips)
  }
  const amara=m.payroll(m.initialRequests,1,'2026-10');assert.ok(amara.absentDays>0&&amara.unpaidDays>0)
 })
+
+ test('Home follows the India date, midnight rollover and the next unpublished week',()=>{
+  assert.equal(m.todayInCafe(new Date('2026-11-20T18:29:59Z')),'2026-11-20')
+  assert.equal(m.todayInCafe(new Date('2026-11-20T18:30:00Z')),'2026-11-21')
+  assert.equal(m.nextUnpublishedWeek('2026-11-20'),'2026-11-23')
+  assert.equal(m.nextUnpublishedWeek('2026-11-22'),'2026-11-23')
+  assert.equal(m.nextUnpublishedWeek('2026-11-23'),'2026-11-30')
+  assert.equal(m.nextUnpublishedWeek('2026-11-20',{'2026-11-23':true,'2026-11-30':true}),'2026-12-07')
+  assert.equal(m.nextUnpublishedWeek('2026-11-20',{'2026-11-23':false}),'2026-11-23')
+ })
+ test('LOP is a deduction from pre-LOP gross, with no second reduction to net pay',()=>{
+  for(const p of m.staff)for(const month of ['2026-10','2026-11']){
+   const pay=m.payroll(m.initialRequests,p.id,month)
+   assert.equal(pay.unpaidDeduction,pay.unpaid*pay.rate)
+   assert.equal(pay.gross-pay.unpaidDeduction,pay.earnedGross)
+   assert.equal(pay.deductions,pay.unpaidDeduction+pay.withholding)
+   assert.equal(pay.net,Math.round((pay.earnedGross-pay.withholding)*100)/100)
+   assert.equal(Math.round((pay.gross-pay.deductions)*100)/100,pay.net)
+  }
+ })

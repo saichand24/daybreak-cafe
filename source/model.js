@@ -13,6 +13,16 @@ export const staffingSlotsForDay=day=>day.startsWith('2026-11')?[{name:'Opening'
 export const staffingSlots=[{name:'Opening',start:540,end:660,minimum:1},{name:'Lunch',start:660,end:900,minimum:3},{name:'Afternoon',start:900,end:1020,minimum:2},{name:'Evening',start:1020,end:1260,minimum:1}]
 export const date=(iso,offset=0)=>{const d=new Date(iso+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+offset);return d.toISOString().slice(0,10)}
 export const monday=iso=>date(iso,-((new Date(iso+'T12:00:00Z').getUTCDay()+6)%7))
+export const todayInCafe=(now=new Date())=>{
+ const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kolkata',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(now)
+ const value=type=>parts.find(part=>part.type===type).value
+ return value('year')+'-'+value('month')+'-'+value('day')
+}
+export const nextUnpublishedWeek=(today,published={})=>{
+ let next=date(monday(today),7)
+ while(published[next])next=date(next,7)
+ return next
+}
 export const asOf='2026-11-23'
 export const week='2026-11-30'
 export const holidays=['2026-10-02','2026-11-08']
@@ -240,8 +250,9 @@ export function payroll(requests,id,month,shifts=initialShifts){
   overtime+=record.actual-regular
   if(record.status==='Leave'&&day<=asOf){if(record.paid){paidLeave+=record.scheduled;paidLeaveDays++}else{unpaid+=record.scheduled;unpaidDays++}}
  }
- const rate=staff[id].rate,tips=(base+overtime)*12,gross=(base+paidLeave)*rate+overtime*rate*1.5+tips,deductions=Math.round(gross*8)/100
- return {base,overtime,paidLeave,paidLeaveDays,unpaid,unpaidDays,scheduled,absent,absentDays,rate,tips,gross,deductions,net:gross-deductions}
+ const rate=staff[id].rate,tips=(base+overtime)*12,earnedGross=(base+paidLeave)*rate+overtime*rate*1.5+tips
+ const unpaidDeduction=unpaid*rate,withholding=Math.round(earnedGross*8)/100,gross=earnedGross+unpaidDeduction,deductions=withholding+unpaidDeduction
+ return {base,overtime,paidLeave,paidLeaveDays,unpaid,unpaidDays,scheduled,absent,absentDays,rate,tips,earnedGross,unpaidDeduction,withholding,gross,deductions,net:Math.round((gross-deductions)*100)/100}
 }
 
 
