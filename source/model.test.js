@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import * as m from './model.js'
 test('every employee and every recorded day matches the roster and clock records',()=>{
  for(const p of m.staff)for(const day of m.range('2026-10-01',m.asOf)){
- const r=m.attendance(m.initialRequests,p.id,day),t=m.templates[m.initialShifts[p.id+'|'+day]]
+ const r=m.attendance(m.initialRequests,p.id,day),t=m.shiftTemplate(m.initialShifts[p.id+'|'+day],day)
  assert.equal(r.scheduled,r.status==='Leave'?m.scheduledHours(p.id,day):t?(t.end-t.start)/60:0,p.name+' '+day)
  if(r.clockIn!=null)assert.equal(r.actual,(r.clockOut-r.clockIn)/60)
  if(r.status==='Off'){assert.equal(r.actual,0);assert.equal(r.scheduled,0)}
@@ -110,14 +110,14 @@ test('mixed paid and LOP days reconcile with attendance, usage and payslip',()=>
 test('all demo weeks meet coverage, weekoff, leave and rest rules with approved October overtime',()=>{
  for(let start=m.rosterStart;start<=m.week;start=m.date(start,7)){
   const issues=m.validate(m.initialShifts,m.initialRequests,start)
-  assert.ok(issues.every(i=>i.level==='Warning'&&i.label.includes('over the 40-hour limit')),start)
+  assert.ok(issues.every(i=>i.level==='Warning'&&(i.label.includes('over the 40-hour limit')||i.label.startsWith('Understaffed: Closing assignments on 2026-11'))),start)
   for(const p of m.staff){
-   const assignments=m.range(start,m.date(start,6)).map(day=>({day,t:m.templates[m.initialShifts[p.id+'|'+day]]})).filter(x=>x.t)
+   const assignments=m.range(start,m.date(start,6)).map(day=>({day,t:m.shiftTemplate(m.initialShifts[p.id+'|'+day],day)})).filter(x=>x.t)
    assert.ok(assignments.reduce((n,x)=>n+(x.t.end-x.t.start)/60,0)<=(m.range(start,m.date(start,6)).some(d=>/2026-(10|11)/.test(d))?48:40),p.name+' '+start)
-   for(const {day,t} of assignments){assert.equal(m.unavailable(p.id,day),false);assert.equal(m.leaveAt(m.initialRequests,p.id,day),undefined);assert.ok(t.start>=540);if(p.minor)assert.ok(t.end<=1320)}
+   for(const {day,t} of assignments){assert.equal(m.unavailable(p.id,day),false);assert.equal(m.leaveAt(m.initialRequests,p.id,day),undefined);assert.ok(t.start>=(day.startsWith('2026-11')?360:540));if(p.minor)assert.ok(t.end<=1320)}
   }
-  for(const day of m.range(start,m.date(start,6)).filter(d=>!m.holidays.includes(d)))for(const slot of m.staffingSlots)for(let at=slot.start;at<slot.end;at+=30){
-   const count=m.staff.filter(p=>{const t=m.templates[m.initialShifts[p.id+'|'+day]];return t&&t.start<=at&&t.end>at}).length
+  for(const day of m.range(start,m.date(start,6)).filter(d=>!m.holidays.includes(d)))for(const slot of m.staffingSlotsForDay(day))for(let at=slot.start;at<slot.end;at+=30){
+   const count=m.staff.filter(p=>{const t=m.shiftTemplate(m.initialShifts[p.id+'|'+day],day);return t&&t.start<=at&&t.end>at}).length
    assert.ok(count>=slot.minimum,day+' '+m.time(at))
   }
  }
@@ -146,7 +146,7 @@ test('monthly hours breakdown reconciles daily rows, payroll and excluded time f
   assert.equal(rows.reduce((n,r)=>n+r.actual-r.overtime,0),totals.regular)
  }
  const sofia=m.monthDays('2026-11').map(day=>({day,...m.attendance(m.initialRequests,3,day)}))
- assert.equal(m.attendanceTotals(sofia).worked,128.75)
+ assert.equal(m.attendanceTotals(sofia).worked,136)
  assert.deepEqual(m.attendanceTotals([{status:'Not recorded',scheduled:8,actual:0,overtime:0}]),{worked:0,overtime:0,regular:0,paidLeave:0,unpaidLeave:0,absent:0,paidLeaveDays:0,unpaidLeaveDays:0,absentDays:0})
 })
 
@@ -174,19 +174,35 @@ test('October validation requires the third weekend midday assignment and blocks
  assert.equal(m.canPublish(issues,true),false)
 })
 
-test('November has 2/2/2 weekdays, 2/3/2 weekends and November 8 as its only holiday',()=>{
+test('November follows MWF 2/2/2, TueThu 2/2/1, weekends 2/3/2 and November 8 holiday',()=>{
  assert.deepEqual(m.holidays.filter(d=>d.startsWith('2026-11')),['2026-11-08']);let count=0
  for(const day of m.monthDays('2026-11')){
   const ids=m.staff.filter(p=>m.initialShifts[p.id+'|'+day]!=null).map(p=>p.id)
   if(day==='2026-11-08'){assert.equal(ids.length,0);for(const p of m.staff)assert.equal(m.attendance(m.initialRequests,p.id,day).status,'Holiday');continue}
-  const weekend=[0,6].includes(new Date(day+'T12:00:00Z').getUTCDay()),expected=[2,weekend?3:2,2];count+=ids.length
+  const weekend=[0,6].includes(new Date(day+'T12:00:00Z').getUTCDay()),expected=[2,weekend?3:2,[2,4].includes(new Date(day+'T12:00:00Z').getUTCDay())?1:2];count+=ids.length
   for(const type of [0,1,2])assert.equal(ids.filter(id=>m.initialShifts[id+'|'+day]===type).length,expected[type],day+' '+m.templates[type].name)
   for(const p of m.staff){assert.notEqual(m.attendance(m.initialRequests,p.id,day).status,'Holiday');if(m.leaveAt(m.initialRequests,p.id,day)||m.unavailable(p.id,day))assert.equal(ids.includes(p.id),false)}
  }
- assert.equal(count,182)
+ assert.equal(count,174)
  const pending=m.initialRequests.filter(r=>r.status==='Pending');assert.equal(pending.length,5);assert.equal(pending.filter(r=>!r.paid).length,2)
  for(const r of pending){assert.equal(r.requestedOn,'2026-11-22');assert.ok(r.start>='2026-11-24'&&r.end<='2026-11-30');assert.ok(m.requestDays(r).length>0);for(const d of m.requestDays(r))assert.equal(m.leaveAt(m.initialRequests,r.staff,d),undefined)}
  for(const p of m.staff){let run=0;for(const day of m.range(m.rosterStart,'2026-12-06')){run=m.initialShifts[p.id+'|'+day]!=null?run+1:0;assert.ok(run<=6,p.name+' '+day)}}
  assert.ok(m.staff.some(p=>m.payroll(m.initialRequests,p.id,'2026-11').overtime>0))
  assert.ok(m.staff.some(p=>m.payroll(m.initialRequests,p.id,'2026-11').paidLeave>0));assert.ok(m.staff.some(p=>m.payroll(m.initialRequests,p.id,'2026-11').unpaid>0))
+})
+
+test('November eight-hour templates, highlighted shortages and true blocking checks agree',()=>{
+ assert.deepEqual(m.templatesForDay('2026-11-02').map(t=>[t.start,t.end]),[[360,840],[600,1080],[900,1380]])
+ for(const t of m.templatesForDay('2026-11-02'))assert.equal(t.end-t.start,480)
+ const shortageDays=new Set()
+ for(let start='2026-10-26';start<='2026-11-30';start=m.date(start,7)){
+  const issues=m.validate(m.initialShifts,m.initialRequests,start);assert.equal(issues.filter(i=>i.level==='Error').length,0)
+  for(const i of issues.filter(i=>i.label.startsWith('Understaffed:'))){assert.equal(i.level,'Warning');assert.ok(i.label.includes('1/2 staff'));const day=i.keys[0];assert.ok([2,4].includes(new Date(day+'T12:00:00Z').getUTCDay()));shortageDays.add(day)}
+ }
+ assert.equal(shortageDays.size,8)
+ const issues=m.validate({'7|2026-11-10':2,'7|2026-11-11':0,'5|2026-11-10':2},[],'2026-11-09')
+ assert.ok(issues.some(i=>i.level==='Error'&&i.label.includes('7 hours of rest')))
+ assert.ok(issues.some(i=>i.level==='Error'&&i.label.includes('under 18')&&i.label.includes('23:00')))
+ assert.equal(m.canPublish(issues,true),false)
+ for(const day of m.range('2026-11-01',m.asOf))for(const p of m.staff){const r=m.attendance(m.initialRequests,p.id,day);if(r.clockOut)assert.ok(r.clockOut<=1380)}
 })

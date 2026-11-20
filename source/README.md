@@ -12,17 +12,17 @@ All employees and records are fictional. The presentation reporting date is 23 N
 
 ## October and November staffing
 
-Eight staff are retained, including two minors. Open weekdays have exactly 2 Opening (09:00-17:00), 2 Midday (10:00-18:00) and 2 Closing (13:00-21:00) assignments. Open Saturdays/Sundays have exactly 2 Opening, 3 Midday and 2 Closing assignments.
+Eight staff are retained, including two minors. October retains its existing eight-hour shifts and 2/2/2 weekday, 2/3/2 weekend staffing. November uses Opening 06:00-14:00, Midday 10:00-18:00 and Closing 15:00-23:00, each eight hours. November Monday/Wednesday/Friday have 2/2/2 assignments, Tuesday/Thursday have 2/2/1 and weekends have 2/3/2. Closing still requires two staff; the single Tuesday/Thursday closing assignment is deliberately highlighted as understaffed.
 
-October 2 and November 8 are the only closed holidays in their respective months. November 11 is a normal day. October has 21 open weekdays and 9 weekend days: 189 assignments. November has 21 open weekdays and 8 open weekend days: 182 assignments. Holiday columns, empty holiday cells and coverage footers explicitly say Holiday.
+October 2 and November 8 are the only closed holidays in their respective months. November 11 is a normal day. October has 21 open weekdays and 9 weekend days: 189 assignments. November has 13 Monday/Wednesday/Friday dates, 8 Tuesday/Thursday dates, 8 open weekend days and one holiday: 174 assignments. Holiday columns, empty holiday cells and coverage footers explicitly say Holiday.
 
 Date-specific Week Offs are rebalanced around the existing approved leave. The manager authorized overtime to retain eight staff. The planner limits staff to six shifts per Monday-Sunday week, allows no more than six consecutive workdays across month boundaries, and assigns closing shifts to adults. The eight-hour rest rule and 10 pm minor limit remain enforced. Approved leave has no assigned shifts. All historical October approved leave is retained; November retains Amara's paid vacation on the 18th-19th and Sofia's unpaid leave on the 5th.
 
-Weekly hours over 40 remain warnings and require acknowledgment before publishing. Default assignments have no staffing, Week Off, approved-leave, minor or rest violations. December retains its original mock weekly availability pattern. Boundary checks include the adjacent month. Schedule shortcuts open October or November directly; daily staffing totals are shown beneath the grid.
+Weekly hours over 40 remain warnings and require acknowledgment before publishing. The default has eight intentional November Tuesday/Thursday closing understaffing warnings, plus weekly overtime warnings where applicable. There are no default blocking errors or Week Off/approved-leave conflicts. November closing employees are not assigned the following day's 06:00 opening, which would leave only seven hours of rest. Minors are never assigned the default 23:00 closing. December retains its original mock weekly availability pattern. Boundary checks include the adjacent month. Schedule shortcuts open October or November directly; daily staffing totals are shown beneath the grid.
 
 ## Editable roster and recorded clocks
 
-All dates can be edited, copied and published; there is no date lock. Roster edits update scheduled hours shown in attendance. Recorded clock times remain actual records. The mock fixtures include 15-minute late arrivals, absences and occasional extra hours. Weekly overtime uses actual hours over 40 in a Monday-Sunday week, including days before a month boundary. Paid leave is excluded from worked overtime. Minor clock-outs remain before 22:00. Home's Week status card was removed.
+All dates can be edited, copied and published; there is no date lock. Roster edits update scheduled hours shown in attendance. Recorded clock times remain actual records. The mock fixtures include 15-minute late arrivals, absences and occasional extra hours. November clock-outs are capped at 23:00. Weekly overtime uses actual hours over 40 in a Monday-Sunday week, including days before a month boundary. Paid leave is excluded from worked overtime. Minor clock-outs remain before 22:00. Home's Week status card was removed.
 
 ## Leave requests and LOP
 
@@ -38,4 +38,6 @@ Actual weekly overtime is paid at 1.5x. Paid leave contributes its scheduled hou
 
 ## Persistence and validation
 
-The November-roster storage namespace resets older fixtures once so stale schedules and requests cannot mix with the updated month. Later edits persist locally. Eighteen tests cover all employees, October and November day-by-day staffing, closed holidays, Week Offs, leave, actual clocks, rest, minor restrictions, weekly overtime boundaries, LOP approval, pending requests, editable historical dates, monthly breakdown totals, payroll and publishing. November changes were separately checked against the previous October roster and payslip snapshots.
+The November-hours storage namespace resets older fixtures once so stale schedules and requests cannot mix with the updated month. Later edits persist locally. Nineteen tests cover all employees, October and November day-by-day staffing, closed holidays, Week Offs, leave, actual clocks, rest, minor restrictions, weekly overtime boundaries, LOP approval, pending requests, editable historical dates, monthly breakdown totals, payroll and publishing. November changes were separately checked against the previous October roster and payslip snapshots.
+
+The scheduler highlights over-40-hours and understaffing warnings in amber. Rest below eight hours and minors ending after 22:00 are red blockers. The rule legend names all four checks. Tuesday/Thursday coverage cells explicitly say Closing 1/2 and Understaffed. Blocking errors prevent publication; warnings require acknowledgment. Tests exercise a real 23:00-to-06:00 rest blocker and an under-18 23:00 closing blocker.

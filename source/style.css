@@ -51,3 +51,5 @@
 .shift-coverage td{font-size:10px;line-height:1.6;background:#f4f7f0}.shift-coverage th{font-size:11px;background:#f4f7f0}
 
 .holiday-note{display:block;font-size:10px;color:#345584;margin-top:3px}
+
+.cell.warning{border-color:#bb7b25}.coverage-understaffed{color:#814718;background:#fff0da;border:1px solid #d29a48;border-radius:5px;padding:3px;margin-top:3px}.coverage-understaffed small{display:block;font-size:10px;font-weight:800}.rule-legend{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}.rule-legend>span{padding:6px 9px;border-radius:6px;font-size:11px;font-weight:700}.rule-warning{background:#fff0da;color:#814718}.rule-blocker{background:#fbe5e3;color:#a63538}
