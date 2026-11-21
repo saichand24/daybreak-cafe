@@ -26,7 +26,7 @@ All dates can be edited, copied and published; there is no date lock. Roster edi
 
 ## Leave requests and LOP
 
-Leave balances appear above requests. Five requests remain Pending, submitted on 22 November, with leave dates from November 24 onward. Three are paid requests; Sofia and Jules each have one unpaid request. Dates are selected from the employee's planned working days. No December pending requests remain in the fixtures. The manager must approve or reject them; no automatic approval occurs.
+Leave balances appear above requests. Nine default requests cover November 17 through December 4, using the manager-approved dates. All default requests await review. The current balances are Isla vacation 2 days, Finn sick 0 days and Noah sick 0 days. Requested dates do not overlap the default Week Offs. The manager must approve or reject them; no automatic approval occurs.
 
 Leo requests three vacation workdays against two available. Approve opens an explicit confirmation of two paid dates plus one unpaid Loss of Pay date. Confirming deducts only paid days from the balance. Leave is allocated chronologically and does not count Week Offs or holidays. Overlapping requests and requests with no working days are blocked with explanations. Approved leave connects to schedule validation, attendance and payroll.
 
@@ -38,7 +38,7 @@ Actual weekly overtime is paid at 1.5x. Paid leave contributes its scheduled hou
 
 ## Persistence and validation
 
-The November-minor32 storage namespace resets older fixtures once so stale schedules and requests cannot mix with the updated month. Later edits persist locally. Forty-two tests cover all employees, October and November day-by-day staffing, closed holidays, Week Offs, leave, actual clocks, rest, minor restrictions, weekly overtime boundaries, LOP approval, pending requests, editable historical dates, monthly breakdown totals, payroll and publishing. November changes were separately checked against the previous October roster and payslip snapshots.
+The November-minor32 storage namespace resets older fixtures once so stale schedules and requests cannot mix with the updated month. Later edits persist locally. Forty-six tests cover all employees, October and November day-by-day staffing, closed holidays, Week Offs, leave, actual clocks, rest, minor restrictions, weekly overtime boundaries, LOP approval, pending requests, editable historical dates, monthly breakdown totals, payroll and publishing. November changes were separately checked against the previous October roster and payslip snapshots.
 
 The scheduler highlights over-40-hours and understaffing warnings in amber. Rest below eight hours and minors ending after 22:00 are red blockers. The rule legend names all four checks. Tuesday/Thursday coverage cells explicitly say Closing 1/2 and Understaffed. Blocking errors prevent publication; warnings require acknowledgment. Tests exercise a real 23:00-to-06:00 rest blocker and an under-18 23:00 closing blocker.
 
@@ -77,3 +77,7 @@ Attendance clock records and summaries advance automatically through yesterday (
 Opening is 06:00-14:00, Midday 11:00-19:00 and Closing 15:00-23:00 in every month. There is no historical timing override. Eight-hour shift definitions are shared by the grid, templates, clock fixtures and validation. Mock clock-outs are capped at 23:00. The timing migration retains existing assignments and working days, swapping Opening with Midday on the same day where necessary to avoid a previous 23:00 close followed by 06:00 opening. Per-day headcounts, Week Offs and weekly scheduled hours are preserved. Earlier roster data is retained in its previous local-storage key. Other-month default rosters include a midday assignment on weekends so coverage remains valid with these operating hours. Payroll amounts use paise precision after recalculating corrected clock hours.
 
 The payslip no longer adds scheduled unpaid time to gross pay. Gross is base pay plus overtime, paid leave and tips. The Unpaid leave / LOP deduction equals (unpaid leave hours + absence hours) times hourly rate, reducing net pay as the manager-requested penalty. There is no offsetting positive row. Taxes retain the mock 8% of gross pay; Net equals Gross minus LOP and taxes.
+
+## Restored nine-request dataset
+
+The Leave page includes Sofia vacation Nov 21; Jules vacation Nov 22; Finn sick Nov 17 only; Maya sick Nov 25; Jules vacation Nov 27-28; Isla vacation Nov 23-24; Leo vacation Dec 2-4; Noah sick Dec 3; Amara vacation Nov 30. Requests remain sorted newest first. The browser upgrade reads previous leave storage, replaces obsolete default requests, retains matching approvals/rejections and preserves historical/custom leave. Roster, publishing and Week Off storage remain separate. Restore Planned Week changes only the selected week's assignments; it does not reset leave requests, balances or attendance clocks. Tests explicitly check this behavior with existing approved leave.

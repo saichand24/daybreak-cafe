@@ -48,12 +48,12 @@ test('unpaid leave reduces earnings once without consuming vacation or sick bala
  assert.equal(m.payroll(after,1,'2026-10').tips,m.payroll(paid,1,'2026-10').tips)
 })
 test('paid vacation approval deducts only workdays and preserves base earnings',()=>{
- const r=m.initialRequests[0],approved=m.initialRequests.map(x=>x.id===1?{...x,status:'Approved'}:x)
- assert.equal(m.requestDays(r).length,2)
- assert.equal(m.balance(approved,1,'vacation'),m.balance(m.initialRequests,1,'vacation')-2)
+ const r=m.initialRequests.find(r=>r.id===1),approved=m.approveLeave(m.initialRequests,1)
+ assert.equal(m.requestDays(r).length,1)
+ assert.equal(m.balance(approved,1,'vacation'),m.balance(m.initialRequests,1,'vacation')-1)
  assert.equal(m.leaveAt(approved,1,r.start).paid,true)
  assert.equal(m.balance(m.initialRequests,2,'vacation'),2)
- assert.equal(m.requestDays(m.initialRequests[1]).length,3)
+ assert.equal(m.requestDays(m.initialRequests.find(r=>r.id===2)).length,3)
 })
 test('rest and minor errors block publishing; exact eight hours passes',()=>{
  m.templates.push({name:'Late example',start:900,end:1350},{name:'Early example',start:360,end:840},{name:'Eight-hour boundary',start:390,end:870})
@@ -131,10 +131,12 @@ test('past roster edits update scheduled hours without changing recorded clocks 
  assert.equal(m.attendance(m.initialRequests,0,day,shifts).actual,before.actual)
  assert.equal(m.payroll(m.initialRequests,0,'2026-10',shifts).net,m.payroll(m.initialRequests,0,'2026-10').net)
 })
-test('five upcoming requests remain pending, including two unpaid requests',()=>{
+test('the nine specified requests remain pending on exact dates without Week Off conflicts',()=>{
  const pending=m.initialRequests.filter(r=>r.status==='Pending')
- assert.equal(pending.length,5);assert.equal(pending.filter(r=>!r.paid).length,2)
- for(const r of pending)for(const d of m.requestDays(r))assert.ok(m.scheduledHours(r.staff,d)>0)
+ assert.equal(pending.length,9);assert.equal(pending.filter(r=>!r.paid).length,0)
+ const expected=[[3,'vacation',['2026-11-21']],[7,'vacation',['2026-11-22']],[6,'sick',['2026-11-17']],[0,'sick',['2026-11-25']],[7,'vacation',['2026-11-27','2026-11-28']],[5,'vacation',['2026-11-23','2026-11-24']],[2,'vacation',['2026-12-02','2026-12-03','2026-12-04']],[4,'sick',['2026-12-03']],[1,'vacation',['2026-11-30']]]
+ assert.deepEqual(pending.map(r=>[r.staff,r.type,m.requestDays(r)]),expected)
+ for(const r of pending)for(const d of m.requestDays(r)){assert.ok(m.scheduledHours(r.staff,d)>0);assert.equal(m.unavailable(r.staff,d),false)}
 })
 test('monthly hours breakdown reconciles daily rows, payroll and excluded time for every employee',()=>{
  for(const p of m.staff)for(const month of ['2026-10','2026-11']){
@@ -184,8 +186,8 @@ test('November follows MWF 2/2/2, TueThu 2/2/1, weekends 2/3/2 and November 8 ho
   for(const p of m.staff){assert.notEqual(m.attendance(m.initialRequests,p.id,day).status,'Holiday');if(m.leaveAt(m.initialRequests,p.id,day)||m.unavailable(p.id,day))assert.equal(ids.includes(p.id),false)}
  }
  assert.equal(count,173)
- const pending=m.initialRequests.filter(r=>r.status==='Pending');assert.equal(pending.length,5);assert.equal(pending.filter(r=>!r.paid).length,2)
- for(const r of pending){assert.equal(r.requestedOn,'2026-11-22');assert.ok(r.start>='2026-11-24'&&r.end<='2026-11-30');assert.ok(m.requestDays(r).length>0);for(const d of m.requestDays(r))assert.equal(m.leaveAt(m.initialRequests,r.staff,d),undefined)}
+ const pending=m.initialRequests.filter(r=>r.status==='Pending');assert.equal(pending.length,9);assert.equal(pending.filter(r=>!r.paid).length,0)
+ for(const r of pending){assert.ok(r.requestedOn<=r.start&&r.requestedOn<='2026-11-20');assert.ok(r.start>='2026-11-17'&&r.end<='2026-12-04');assert.ok(m.requestDays(r).length>0);for(const d of m.requestDays(r))assert.equal(m.leaveAt(m.initialRequests,r.staff,d),undefined)}
  for(const p of m.staff){let run=0;for(const day of m.range(m.rosterStart,'2026-11-30')){run=m.initialShifts[p.id+'|'+day]!=null?run+1:0;assert.ok(run<=6,p.name+' '+day)}}
  assert.ok(m.staff.some(p=>m.payroll(m.initialRequests,p.id,'2026-11').overtime>0))
  assert.ok(m.staff.some(p=>m.payroll(m.initialRequests,p.id,'2026-11').paidLeave>0));assert.ok(m.staff.some(p=>m.payroll(m.initialRequests,p.id,'2026-11').unpaid>0))
@@ -336,7 +338,7 @@ test('scheduler leave updates completed attendance and payroll, and removal reve
 test('scheduler leave cannot replace a holiday and default requests remain pending',()=>{
  assert.throws(()=>m.scheduleLeaveDraft(m.initialRequests,0,'2026-11-08','sick'),/holiday/)
  assert.throws(()=>m.scheduleLeaveDraft(m.initialRequests,0,'2026-11-25','other'),/Choose/)
- assert.equal(m.initialRequests.filter(r=>r.status==='Pending').length,5)
+ assert.equal(m.initialRequests.filter(r=>r.status==='Pending').length,9)
 })
 
 test('payslip base hours equal Attendance worked hours minus overtime and absences are deducted once',()=>{
@@ -403,6 +405,27 @@ test('runtime Attendance progresses past the old fixed date, keeps future leave 
  assert.equal(m.attendance(m.initialRequests,0,'2026-11-25').status,'Not recorded')
 })
 
+test('requested displayed balances and paid/unpaid splits agree for Finn, Isla and Noah',()=>{
+ assert.equal(m.leaveBalances(m.initialRequests,5).vacation,2)
+ assert.equal(m.leaveBalances(m.initialRequests,6).sick,0)
+ assert.equal(m.leaveBalances(m.initialRequests,4).sick,0)
+ for(const [id,paid,unpaid] of [[7,0,1],[9,2,0],[3,0,1]]){
+  const r=m.initialRequests.find(r=>r.id===id),allocation=m.leaveAllocation(m.initialRequests,r)
+  assert.equal(allocation.paidDays.length,paid);assert.equal(allocation.lopDays.length,unpaid)
+  const approved=m.approveLeave(m.initialRequests,id)
+  assert.equal(m.leaveBalances(approved,r.staff)[r.type],0)
+  for(const [index,day] of m.requestDays(r).entries())assert.equal(m.leaveAt(approved,r.staff,day).paid,index<paid)
+ }
+})
+test('request refresh replaces old visible fixtures without resetting historical or custom leave',()=>{
+ const history=m.initialRequests.filter(r=>r.id>=100),custom={id:2001,staff:0,type:'sick',start:'2026-12-01',end:'2026-12-01',status:'Pending',paid:true}
+ const old=[{id:4,staff:3,status:'Approved',type:'unpaid',start:'2026-11-25',end:'2026-11-25'},...history,custom]
+ const next=m.refreshLeaveRequests(old)
+ assert.deepEqual(next.filter(r=>r.id<=9),m.initialRequests.filter(r=>r.id<=9))
+ assert.deepEqual(next.filter(r=>r.id>=100),[...history,custom])
+ assert.ok(next.filter(r=>r.id<=9).every(r=>r.status==='Pending'))
+})
+
 test('all months use the same eight-hour shift times and recorded clocks end by 23:00',()=>{
  for(const day of ['2026-09-28','2026-10-01','2026-11-01','2026-12-01','2027-01-01'])assert.deepEqual(m.templatesForDay(day).slice(0,3).map(t=>[t.start,t.end]),[[360,840],[660,1140],[900,1380]])
  for(const p of m.staff)for(const day of m.range('2026-10-01',m.asOf)){const r=m.attendance(m.initialRequests,p.id,day);if(r.clockOut!=null)assert.ok(r.clockOut<=1380)}
@@ -429,4 +452,23 @@ test('an eight-hour absence deducts eight hours of pay with no offset in gross',
  assert.equal(pay.unpaidDeduction,8*pay.rate)
  assert.equal(pay.gross,pay.earnedGross)
  assert.equal(pay.net,Math.round((pay.gross-pay.withholding-8*pay.rate)*100)/100)
+})
+
+test('restoring a planned week retains all nine requests, existing approvals and leave balances',()=>{
+ const requests=m.approveLeave(m.initialRequests,9),snapshot=JSON.stringify(requests),balances=m.staff.map(p=>m.leaveBalances(requests,p.id)),start='2026-11-23',end='2026-11-29'
+ const edited={...m.initialShifts,'5|2026-11-23':1,'5|2026-11-24':0}
+ const restored={...Object.fromEntries(Object.entries(edited).filter(([key])=>!m.range(start,end).includes(key.split('|')[1]))),...m.buildRoster(requests,start,end,{})}
+ assert.equal(JSON.stringify(requests),snapshot)
+ assert.deepEqual(m.staff.map(p=>m.leaveBalances(requests,p.id)),balances)
+ assert.equal(requests.filter(r=>r.id<=9).length,9)
+ assert.equal(restored['5|2026-11-23'],undefined);assert.equal(restored['5|2026-11-24'],undefined)
+ for(const [key,type] of Object.entries(edited))if(!m.range(start,end).includes(key.split('|')[1]))assert.equal(restored[key],type)
+})
+test('restoring nine-request data preserves matching manager approvals and rejected decisions',()=>{
+ const approved=m.approveLeave(m.initialRequests,9),records=approved.map(r=>r.id===4?{...r,status:'Rejected'}:r),restored=m.refreshLeaveRequests(records)
+ assert.equal(restored.find(r=>r.id===9).status,'Approved')
+ assert.deepEqual(restored.find(r=>r.id===9).paidDays,['2026-11-23','2026-11-24'])
+ assert.equal(restored.find(r=>r.id===4).status,'Rejected')
+ assert.deepEqual(m.staff.map(p=>m.leaveBalances(restored,p.id)),m.staff.map(p=>m.leaveBalances(records,p.id)))
+ assert.deepEqual(m.refreshLeaveRequests(restored),restored)
 })

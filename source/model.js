@@ -1,6 +1,6 @@
 export const staff = [
  ['Maya Chen','Shift lead',23,6,10],['Amara Okafor','Barista',19,5,8],['Leo Rivera','Barista',18.5,4,2],
- ['Sofia Patel','Kitchen',21,4,7],['Noah Kim','Barista',18,5,7],['Isla Brooks','Counter',16,3,5,true],
+ ['Sofia Patel','Kitchen',21,4,7],['Noah Kim','Barista',18,1,7],['Isla Brooks','Counter',16,3,2,true],
  ['Finn Murphy','Counter',16,1,5,true],['Jules Martin','Kitchen',20,4,8]
 ].map(([name,role,rate,sick,vacation,minor],id)=>({id,name,role,rate:rate*10,sick,vacation,minor, unavailable:[[5,6],[5,6],[0,1],[1,2],[5,6],[2,3],[3,4],[0,1]][id]}))
 export const templates=[{name:'Opening',start:360,end:840,tone:'mint'},{name:'Midday',start:660,end:1140,tone:'blue'},{name:'Closing',start:900,end:1380,tone:'peach'}]
@@ -36,11 +36,15 @@ export const scheduledHours=(id,day)=>rosterShift(id,day)==null?0:8
 export const range=(start,end)=>{const result=[];for(let day=start;day<=end;day=date(day,1)) result.push(day);return result}
 export const time=m=>m==null?'—':String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0')
 export const initialRequests=[
- {id:1,staff:1,type:'vacation',start:'2026-12-02',end:'2026-12-03',reason:'Family visit',status:'Pending',paid:true},
- {id:2,staff:2,type:'vacation',start:'2026-12-02',end:'2026-12-04',reason:'Travel',status:'Pending',paid:true},
- {id:3,staff:4,type:'sick',start:'2026-12-01',end:'2026-12-01',reason:'Medical appointment',status:'Pending',paid:true},
- {id:4,staff:3,type:'unpaid',start:'2026-12-03',end:'2026-12-03',reason:'Personal appointment',status:'Pending',paid:false},
- {id:5,staff:7,type:'unpaid',start:'2026-12-04',end:'2026-12-04',reason:'Personal commitment',status:'Pending',paid:false},
+ {"id":4,"staff":3,"type":"vacation","start":"2026-11-21","end":"2026-11-21","days":["2026-11-21"],"hoursByDay":{"2026-11-21":8},"reason":"Personal appointment","requestedOn":"2026-11-20","status":"Pending","paid":true},
+ {"id":5,"staff":7,"type":"vacation","start":"2026-11-22","end":"2026-11-22","days":["2026-11-22"],"hoursByDay":{"2026-11-22":8},"reason":"Personal commitment","requestedOn":"2026-11-20","status":"Pending","paid":true},
+ {"id":7,"staff":6,"type":"sick","start":"2026-11-17","end":"2026-11-17","days":["2026-11-17"],"hoursByDay":{"2026-11-17":8},"reason":"Sick leave request","requestedOn":"2026-11-16","status":"Pending","paid":true},
+ {"id":8,"staff":0,"type":"sick","start":"2026-11-25","end":"2026-11-25","days":["2026-11-25"],"hoursByDay":{"2026-11-25":8},"reason":"Sick leave request","requestedOn":"2026-11-20","status":"Pending","paid":true},
+ {"id":6,"staff":7,"type":"vacation","start":"2026-11-27","end":"2026-11-28","days":["2026-11-27","2026-11-28"],"hoursByDay":{"2026-11-27":8,"2026-11-28":8},"reason":"Vacation request","requestedOn":"2026-11-20","status":"Pending","paid":true},
+ {"id":9,"staff":5,"type":"vacation","start":"2026-11-23","end":"2026-11-24","days":["2026-11-23","2026-11-24"],"hoursByDay":{"2026-11-23":8,"2026-11-24":8},"reason":"Vacation request","requestedOn":"2026-11-20","status":"Pending","paid":true},
+ {"id":2,"staff":2,"type":"vacation","start":"2026-12-02","end":"2026-12-04","days":["2026-12-02","2026-12-03","2026-12-04"],"hoursByDay":{"2026-12-02":8,"2026-12-03":8,"2026-12-04":8},"reason":"Travel","requestedOn":"2026-11-20","status":"Pending","paid":true},
+ {"id":3,"staff":4,"type":"sick","start":"2026-12-03","end":"2026-12-03","days":["2026-12-03"],"hoursByDay":{"2026-12-03":8},"reason":"Medical appointment","requestedOn":"2026-11-20","status":"Pending","paid":true},
+ {"id":1,"staff":1,"type":"vacation","start":"2026-11-30","end":"2026-11-30","days":["2026-11-30"],"hoursByDay":{"2026-11-30":8},"reason":"Family visit","requestedOn":"2026-11-20","status":"Pending","paid":true},
  ...staff.map(p=>{const day=['2026-10-05','2026-10-06','2026-10-07','2026-10-08','2026-10-09','2026-10-10','2026-10-11','2026-10-14'][p.id];return {id:100+p.id,staff:p.id,type:'sick',start:day,end:day,reason:'Approved sick leave',status:'Approved',paid:true}}),
  ...[1,3,7].map(id=>({id:200+id,staff:id,type:'unpaid',start:({1:'2026-10-15',3:'2026-10-16',7:'2026-10-17'})[id],end:({1:'2026-10-15',3:'2026-10-16',7:'2026-10-17'})[id],reason:'Personal leave without pay',status:'Approved',paid:false})),
  ...[0,4].map(id=>({id:300+id,staff:id,type:'vacation',start:id===0?'2026-10-20':'2026-10-22',end:id===0?'2026-10-20':'2026-10-22',reason:'Approved vacation',status:'Approved',paid:true})),
@@ -123,13 +127,6 @@ function makeNovemberRoster(requests){
  return plan
 }
 export const novemberPlan=makeNovemberRoster(initialRequests)
-// Pending requests are submitted November 22 and span only rostered workdays in November.
-for(const r of initialRequests.filter(r=>r.status==='Pending')){
- const count=r.id===1?2:r.id===2?3:1,days=range('2026-11-24','2026-11-30').filter(day=>novemberPlan[r.staff+'|'+day]!=null)
- if(days.length<count)throw new Error('Not enough November workdays for pending request '+r.id)
- r.start=days[0];r.end=days[count-1];r.requestedOn='2026-11-22'
-}
-
 export const requestDays=r=>r.days??range(r.start,r.end).filter(day=>scheduledHours(r.staff,day)>0)
 export const requestForApproval=r=>r.status==='Pending'&&r.type==='unpaid'&&!r.forceUnpaid?{...r,type:'vacation',paid:true}:r
 export const leaveAllocation=(requests,r)=>{
@@ -308,3 +305,11 @@ export function scheduleLeaveDraft(requests,id,day,type,shifts=initialShifts){
 }
 
 export const leaveRequestLabel=r=>r.type==='sick'?'Sick leave':'Vacation leave'
+
+export const refreshLeaveRequests=existing=>{
+ const records=Array.isArray(existing)?existing:initialRequests
+ return [...initialRequests.filter(r=>r.id<=9).map(expected=>{
+  const saved=records.find(r=>r.id===expected.id&&r.staff===expected.staff&&(r.type==='sick'?'sick':'vacation')===expected.type&&JSON.stringify(requestDays(r))===JSON.stringify(requestDays(expected)))
+  return saved??expected
+ }),...records.filter(r=>r.id>9)]
+}
