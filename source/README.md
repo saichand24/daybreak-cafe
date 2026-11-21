@@ -1,94 +1,215 @@
 # Daybreak Cafe
 
-A React mock-data prototype connecting staff scheduling, attendance, leave and payroll.
+A React mock-data application connecting staff scheduling, attendance, leave and payroll for a cafe manager.
+
+- [Live application](https://saichand24.github.io/daybreak-cafe/)
+- [Figma design file](https://www.figma.com/design/ViyTUF5MpODuStLphrNIfS)
+- [Design decisions and references](https://www.figma.com/design/ViyTUF5MpODuStLphrNIfS?node-id=156-6616)
+
+All staff, clock records, leave requests and payroll figures are fictional. No backend or account is required.
+
+## Repository structure
+
+| Path | Purpose |
+| --- | --- |
+| `/index.html`, `/assets/` | Production bundle served by GitHub Pages |
+| `/source/src.jsx` | React views, interactions and browser persistence |
+| `/source/model.js` | Shared fixtures, scheduling rules, leave, attendance and payroll calculations |
+| `/source/style.css` | Application styling, responsive layouts and print rules |
+| `/source/package.json` | Dependencies and development, build and test commands |
+
+The production bundle and editable source are separate. Updating this README does not rebuild or change the application.
 
 ## Setup
 
-Run `npm ci`, then `npm run dev`. Run `npm test` for the model/rule tests and `npm run build` to create the static `dist` bundle. GitHub Pages uses relative asset paths.
+Install Node.js and npm, clone the repository, then run:
 
-## Reporting dates
+```sh
+cd source
+npm ci
+npm run dev
+```
 
-All employees and records are fictional. The presentation reporting date is 23 November 2026. October attendance and released payslips are complete. November actual attendance stops on the 23rd; later dates say Not recorded. November's full roster is planned, but its payslip remains unreleased until month close. Staff and month selectors use the same records as each monthly hours breakdown.
+Open the local address printed by Vite.
 
-## October and November staffing
+| Command, run inside `source/` | Purpose |
+| --- | --- |
+| `npm run dev` | Start the development server |
+| `npm test` | Run the Node model and rule tests |
+| `npm run build` | Build the static application into `source/dist/` |
+| `npm run preview` | Preview the built application locally |
 
-Eight staff are retained, including two minors. October retains its existing eight-hour shifts and 2/2/2 weekday, 2/3/2 weekend staffing. November uses Opening 06:00-14:00, Midday 11:00-19:00 and Closing 15:00-23:00, each eight hours. November Monday/Wednesday/Friday have 2/2/2 assignments, Tuesday/Thursday have 2/2/1 and weekends have 2/3/2. Closing still requires two staff; the single Tuesday/Thursday closing assignment is deliberately highlighted as understaffed.
+The application uses React, Vite and Lucide icons. It uses relative asset paths for GitHub Pages. To deploy an application change, build it and replace the repository root production bundle with the contents of `source/dist/`. A source edit alone does not update the root bundle.
 
-October 2 and November 8 are the only closed holidays in their respective months. November 11 is a normal day. October has 21 open weekdays and 9 weekend days: 189 assignments. November has 13 Monday/Wednesday/Friday dates, 8 Tuesday/Thursday dates, 8 open weekend days and one holiday: 173 assignments. Holiday columns, empty holiday cells and coverage footers explicitly say Holiday.
+## Modules
 
-Date-specific Week Offs are rebalanced around the existing approved leave. The manager authorized overtime to retain eight staff. The planner limits adults to six shifts and minors to four shifts per Monday-Sunday week, limits November work streaks to six days, and assigns closing shifts to adults. The eight-hour rest rule and 10 pm minor limit remain enforced. Approved leave has no assigned shifts. All historical October approved leave is retained; November retains Amara's paid vacation on the 18th-19th and Sofia's unpaid leave on the 5th.
+### Home
 
-Weekly hours over 40 remain warnings and require acknowledgment before publishing. The default has eight intentional November Tuesday/Thursday closing understaffing warnings plus the November 1 midday shortage, plus weekly overtime warnings where applicable. There are no default blocking errors or Week Off/approved-leave conflicts. November closing employees are not assigned the following day's 06:00 opening, which would leave only seven hours of rest. Minors are never assigned the default 23:00 closing. December retains its original mock weekly availability pattern. Boundary checks include the adjacent month. Use the existing previous/next week arrows to navigate; daily staffing totals are shown beneath the grid.
+Home uses today's date in `Asia/Kolkata` and shows that day's roster. It refreshes its date on window focus, visibility changes and a 30-second interval.
 
-## Editable roster and recorded clocks
+Schedule ready for review targets the first unpublished Monday-Sunday week after the current week, skipping weeks already published. Its blockers and warnings belong to that upcoming week, not today's roster. Review schedule opens the same week.
 
-All dates can be edited, copied and published; there is no date lock. Roster edits update scheduled hours shown in attendance. Recorded clock times remain actual records. The mock fixtures include 15-minute late arrivals, absences and occasional extra hours. November clock-outs are capped at 23:00. Minors receive no extra-hour clock examples. Weekly overtime uses actual hours over 40 in a Monday-Sunday week, including days before a month boundary. Paid leave is excluded from worked overtime. Minor clock-outs remain before 22:00. Home's Week status card was removed.
+The lower leave list includes upcoming approved leave and pending requests. The separate Home blockers/warnings metric and Week status card are not present. Clicking the Daybreak logo returns to Home.
 
-## Leave requests and LOP
+### Shift Scheduler
 
-Leave balances appear above requests. Nine default requests cover November 17 through December 4, using the manager-approved dates. All default requests await review. The current balances are Isla vacation 2 days, Finn sick 0 days and Noah sick 0 days. Requested dates do not overlap the default Week Offs. The manager must approve or reject them; no automatic approval occurs.
+Staff are rows and days are columns. Managers can drag shift templates onto cells or select a template/cell through the click-based controls. Week Off and Leave can also be added and removed.
 
-Leo requests three vacation workdays against two available. Approve opens an explicit confirmation of two paid dates plus one unpaid Loss of Pay date. Confirming deducts only paid days from the balance. Leave is allocated chronologically and does not count Week Offs or holidays. Overlapping requests and requests with no working days are blocked with explanations. Approved leave connects to schedule validation, attendance and payroll.
+All months share these eight-hour shifts:
 
-## Attendance and payroll
+| Shift | Time |
+| --- | --- |
+| Opening | 06:00-14:00 |
+| Midday | 11:00-19:00 |
+| Closing | 15:00-23:00 |
 
-Click Worked hours > View breakdown to inspect the selected employee's daily scheduled shift, status, clock-in/out, regular hours, overtime and worked hours. The footer and regular + overtime equation exactly match the monthly card. Paid leave, unpaid LOP and absences are separate from worked hours. Future records are excluded from totals. The Daybreak logo is a keyboard-accessible Home button.
+Minimum assignment targets are:
 
-Actual weekly overtime is paid at 1.5x. Paid leave contributes its scheduled hours to earnings. Unpaid leave and absence hours are deducted from earned gross pay as a penalty, with no positive offset. Taxes use the existing mock 8% of gross pay. Illustrative INR rates are 160-230/hour, tips are INR 12 per worked hour, and withholding is a mock 8%. Closed holidays have no paid-hours allowance. These are take-home assumptions, not statutory payroll rules.
+| Day | Opening | Midday | Closing |
+| --- | --- | --- | --- |
+| Monday-Friday | 2 | 2 | 2 |
+| Saturday-Sunday | 2 | 3 | 2 |
 
-## Persistence and validation
+These are required counts, not a guarantee that every mock roster meets them. The November Tuesday/Thursday fixtures deliberately have one Closing assignment and therefore show understaffing. November 1 retains the October carry-in schedule: both minors have Week Off, leaving a Midday 2/3 shortage. October 2 and November 8 are the only configured closed holidays.
 
-The November-minor32 storage namespace resets older fixtures once so stale schedules and requests cannot mix with the updated month. Later edits persist locally. Forty-seven tests cover all employees, October and November day-by-day staffing, closed holidays, Week Offs, leave, actual clocks, rest, minor restrictions, weekly overtime boundaries, LOP approval, pending requests, editable historical dates, monthly breakdown totals, payroll and publishing. November changes were separately checked against the previous October roster and payslip snapshots.
+The grid shows actual/required assignment counts and dated staffing warnings. Validation also checks the configured time-slot coverage, so there can be more warnings than the assignment shortfalls alone suggest. Checks apply to every selected month and include relevant adjacent-week context.
 
-The scheduler highlights over-40-hours and understaffing warnings in amber. Rest below eight hours and minors ending after 22:00 are red blockers. The rule legend names all four checks. Tuesday/Thursday coverage cells explicitly say Closing 1/2 and Understaffed. Blocking errors prevent publication; warnings require acknowledgment. Tests exercise a real 23:00-to-06:00 rest blocker and an under-18 23:00 closing blocker.
+| Rule | Severity | Publishing behaviour |
+| --- | --- | --- |
+| More than 40 scheduled hours in a Monday-Sunday week | Warning | Requires acknowledgment |
+| Under 8 hours between consecutive shifts | Blocker | Must be corrected |
+| Under-18 employee scheduled past 22:00 | Blocker | Must be corrected |
+| Under-18 employee scheduled above 32 hours in a week | Blocker | Must be corrected |
+| Staffing below a required assignment or time-slot minimum | Warning | Requires acknowledgment |
+| Shift during approved leave or a closed holiday | Blocker | Must be corrected |
+| Shift conflicting with Week Off | Warning | Requires acknowledgment |
 
-## Minor hours and the retained October boundary
+The 32-hour minor cap is an additional project rule; it was not part of the original take-home brief. It now applies across months. Preserved historical assignments can therefore show blockers rather than being silently rewritten or exempted.
 
-November shifts are 06:00-14:00, 11:00-19:00 and 15:00-23:00, all eight hours. Under-18 staff have a hard 32-hour weekly limit in November and may not work the closing shift past 22:00. Both scheduled and recorded actual minor hours are checked. November 30 includes the December 1-6 planned hours when enforcing the cap.
+Exactly eight hours of rest passes; a 23:00 finish followed by a 06:00 start gives seven hours and blocks publishing. Minors cannot use the 15:00-23:00 Closing template because it ends after 22:00.
 
-The manager explicitly chose to preserve October and understaff November 1. In the week ending November 1, Isla already has 40 October scheduled hours and Finn 32. Both have Week Off on November 1. Existing October carry-in is displayed as an exception to the new policy; no November hours can be added above the remaining weekly allowance. November 1 therefore has six adults (2 opening, 2 midday, 2 closing) and a highlighted 2/3 midday shortage. Working-day and leave allocations are retained; all months now use the shared shift times and payroll follows the resulting recorded hours. The 32-hour rule blocks additional hours in every subsequent shared November week.
+Blocking errors prevent publication. Warnings allow publication only after explicit acknowledgment. Roster edits can affect validation in neighbouring weeks.
 
-## Leave balances, future leave and overtime detail
+Previous/Next week, Copy last week, the Week Offs & leave overlay and Review & publish remain available. Restore Planned Week is removed. Historical dates remain editable.
 
-Leave cards and request dialogs use the same live sick/vacation balance helper. A request explicitly names its leave type and the corresponding available balance. Leo has 3 sick and 2 vacation days; his three-workday vacation request allocates two paid vacation dates and one unpaid LOP date only after manager confirmation. Sick balance is not consumed by vacation.
+December 7-13, 2026 has its assignments cleared and is unpublished in the seeded/migrated state. It remains editable; assignments added afterwards survive reloads.
 
-Approved future leave appears immediately in the attendance calendar as Paid leave or Unpaid / LOP with an Upcoming label, and in the scheduler overlay. It has no actual clock times. Worked-hours summaries and payroll exclude future leave until the reporting date reaches it. Available paid balances are deducted on approval.
+### Monthly Attendance
 
-Payslip unpaid totals include approved unpaid leave and absent scheduled hours. LOP is deducted once below gross pay; absences remain excluded from base pay. The payslip separately lists their days and hours. Click Attendance > Overtime > View weekly breakdown for each Monday-Sunday actual-hours calculation, the 40-hour threshold, weekly overtime, the selected month share, and expandable daily clock rows. Overtime uses max(0, actual weekly work minus 40); leave and absence do not count as worked hours.
+The staff/month controls provide October and November 2026 demo records. The calendar distinguishes Present, Late, Absent, Leave, Holiday, Week Off and Not recorded.
 
-Home uses the current India date (Asia/Kolkata), refreshing on window focus, visibility changes and every 30 seconds. Today’s roster follows that date. Home checks independently target the first unpublished Monday-Sunday week after the current week, skipping published weeks; Review schedule opens that exact week. Attendance uses yesterday in IST as its reporting cutoff; other pages retain their existing behavior.
+Actual attendance and its summaries advance through **yesterday in IST**. For example, viewing on November 21 shows recorded attendance through November 20; viewing on November 22 advances it through November 21. This is a runtime cutoff, not a permanently fixed November 23 cutoff.
 
-## Editable Week Off and Leave templates
+Approved future leave appears immediately as planned paid or unpaid leave, without clock times or inclusion in recorded attendance totals. An unrecorded future day is not treated as an absence.
 
-Drag Week Off or Leave onto a staff/day cell, or click the template then a cell. Clicking a cell also offers these choices. Remove Week Off or Remove leave is available in the cell dialog. Week Off removes the planned shift; historical clock records remain unchanged. Assigning a work shift replaces Week Off. Week Off overrides persist and are included in validation, copying and planned-week restoration. Closed holidays cannot be replaced by Week Off or Leave.
+Selecting a day shows scheduled versus actual hours and clock-in/out. Worked hours opens a daily breakdown; Overtime opens a Monday-Sunday weekly breakdown.
 
-Leave opens an explicit Sick, Vacation or Unpaid/LOP confirmation showing balances and the paid/LOP split. Only Approve & add leave commits it, removes the planned shift and updates balances, attendance and payroll. Removing leave requires confirmation, applies only to that date and restores its deducted paid balance; other dates remain approved. The five original pending requests are not approved automatically.
+Overtime is actual work above 40 hours in each week. Weeks crossing a month boundary include the other month's clock records when applying the threshold; the monthly total includes overtime attributed to dates in that month. Paid leave, unpaid leave and absences are not worked overtime.
 
-## Payslip worked hours and vacation-first approval
+`Worked hours = Regular hours + Overtime hours`
 
-Payslip Base pay hours equal Attendance Worked hours minus Overtime for that employee and month. Base pays regular hours at 1x; Overtime is listed separately at 1.5x. Paid leave is separate. Unpaid leave and absence hours are deducted from gross pay without a positive offset. Gross minus total deductions equals Net.
+Times are displayed as hours and minutes. Roster edits update scheduled hours; recorded clock times remain mock actual records rather than being rewritten to match a new plan.
 
-Request subtitles show only Sick leave or Vacation leave. Generic pending requests previously marked unpaid are reviewed as vacation requests: available vacation is used chronologically, then excess workdays become unpaid. Sick requests use sick balances. Explicit unpaid leave added by the manager retains its selected unpaid outcome. Prior approved payment outcomes are preserved. Approval deducts only paid days, shows Paid leave or Unpaid leave per date in Attendance, and removes that employee’s shifts on approved leave dates so Scheduler shows leave and staffing warnings. No request is automatically approved by this update.
+### Leave
 
-Attendance clock records and summaries advance automatically through yesterday (Asia/Kolkata). The open app refreshes its date on focus/visibility changes and every 30 seconds. Current/future dates have no clock records; approved future leave remains visible as planned leave and is excluded from recorded totals. The fixed reporting cutoff used by other modules is unchanged. Tests cover India-midnight rollover, reporting after the former November 23 cutoff, month boundaries and matching weekly/monthly overtime totals.
+Sick and vacation balances appear above requests. Request review uses the same employee balances as those cards. Request rows identify Sick leave or Vacation leave; the review explains the paid/unpaid allocation.
 
-## Shared shift times for every month
+Requests are sorted by leave start date, latest first: December precedes November and October. The submission date is shown separately.
 
-Opening is 06:00-14:00, Midday 11:00-19:00 and Closing 15:00-23:00 in every month. There is no historical timing override. Eight-hour shift definitions are shared by the grid, templates, clock fixtures and validation. Mock clock-outs are capped at 23:00. The timing migration retains existing assignments and working days, swapping Opening with Midday on the same day where necessary to avoid a previous 23:00 close followed by 06:00 opening. Per-day headcounts, Week Offs and weekly scheduled hours are preserved. Earlier roster data is retained in its previous local-storage key. Other-month default rosters include a midday assignment on weekends so coverage remains valid with these operating hours. Payroll amounts use paise precision after recalculating corrected clock hours.
+The default pending requests are:
 
-The payslip no longer adds scheduled unpaid time to gross pay. Gross is base pay plus overtime, paid leave and tips. The Unpaid leave / LOP deduction equals (unpaid leave hours + absence hours) times hourly rate, reducing net pay as the manager-requested penalty. There is no offsetting positive row. Taxes retain the mock 8% of gross pay; Net equals Gross minus LOP and taxes.
+| Staff | Type | Requested dates, 2026 |
+| --- | --- | --- |
+| Noah Kim | Sick | December 3 |
+| Leo Rivera | Vacation | December 2-4 |
+| Amara Okafor | Vacation | November 30 |
+| Jules Martin | Vacation | November 27-28 |
+| Maya Chen | Sick | November 25 |
+| Isla Brooks | Vacation | November 23-24 |
+| Jules Martin | Vacation | November 22 |
+| Sofia Patel | Vacation | November 21 |
+| Finn Murphy | Sick | November 17 |
 
-## Restored nine-request dataset
+The seeded balances, after historical approved leave and before these requests are reviewed, include Isla vacation 2 days, Finn sick 0 days and Noah sick 0 days. There are nine pending requests in a fresh dataset. Saved manager decisions can reduce that count and change balances; screenshots may show a reviewed browser state.
 
-The Leave page includes Sofia vacation Nov 21; Jules vacation Nov 22; Finn sick Nov 17 only; Maya sick Nov 25; Jules vacation Nov 27-28; Isla vacation Nov 23-24; Leo vacation Dec 2-4; Noah sick Dec 3; Amara vacation Nov 30. Requests remain sorted newest first. The browser upgrade reads previous leave storage, replaces obsolete default requests, retains matching approvals/rejections and preserves historical/custom leave. Roster, publishing and Week Off storage remain separate. The Restore Planned Week button and confirmation dialog have been removed. Leave requests and balances remain independent from roster editing. Tests explicitly check this behavior with existing approved leave.
+Approval uses only the requested leave type's available balance. Paid days are allocated chronologically, with excess working days marked unpaid Loss of Pay (LOP). For example, Leo's three vacation days against two available become two paid vacation days and one unpaid day after the manager confirms. Sick entitlement is not consumed by a vacation request.
 
-The Schedule toolbar retains Previous/Next week, the Week Offs & leave overlay, Copy last week and Review & publish. Restore Planned Week is no longer available in the UI.
+Exceeding the balance does not disable review. The manager sees the split and confirms the unpaid outcome. Pending requests do not deduct balances or approve themselves. Overlaps with approved leave and requests with no working days are blocked with explanations.
 
-December staffing is checked against minimum assignments of 2 Opening, 2 Midday and 2 Closing on weekdays; weekends require 3 Midday. The grid shows Understaffed and actual/required counts for shortages, and Schedule checks lists matching warnings requiring acknowledgment before publication. Roster assignments are unchanged. The same minimum assignment policy applies to every month.
+Approval connects the modules:
 
+1. Deduct only the paid days from the appropriate balance.
+2. Show paid/unpaid leave on the attendance calendar, including future dates.
+3. Remove conflicting shifts and show leave in the scheduler.
+4. Recalculate staffing warnings and the relevant pay inputs.
 
-## All-month schedule checks and cleared week
+Week Offs and holidays are excluded from ordinary working-day request allocation. Explicit manager-created unpaid leave retains its selected unpaid outcome. Removing an approved leave date requires confirmation, returns its paid entitlement where applicable and preserves other approved dates.
 
-Every selected week uses the same checks, including month/year boundaries: over 40 hours is a warning; fewer than 8 hours rest, minors past 22:00 and minors above 32 weekly hours are blockers; staffing shortages are warnings. Historical assignments remain unchanged and can now show previously exempt minor-hour blockers. Warnings require acknowledgment and blockers prevent publishing.
+### Payslips
 
-The upgrade clears only shift assignments for December 7-13, 2026, once, and marks that week unpublished. Other weeks, leave requests, balances and Week Off overrides are preserved. The cleared week remains editable; new assignments survive reloads. The old shift storage is retained.
+October 2026 is the released demo period. November remains unreleased and Print / save PDF is disabled for it. Release is a fixed demo policy, not an automatic monthly salary-release service.
+
+Amounts use INR. Payslip regular and overtime hours come from attendance records for the selected employee/month:
+
+```text
+Base hours = Worked hours - Overtime hours
+Base pay = Base hours x Hourly rate
+Overtime pay = Overtime hours x Hourly rate x 1.5
+Paid leave pay = Eligible paid leave hours x Hourly rate
+Tips = Worked hours x INR 12
+Gross pay = Base pay + Overtime pay + Paid leave pay + Tips
+
+Unpaid leave / LOP deduction =
+  (Approved unpaid leave hours + Absent scheduled hours) x Hourly rate
+Taxes = 8% of Gross pay, rounded to paise
+Total deductions = Unpaid leave / LOP deduction + Taxes
+Net pay = Gross pay - Total deductions
+```
+
+Absent time already contributes no worked hours. The additional negative deduction is the requested mock penalty policy. It is combined under Unpaid leave / LOP; there is no separate Absent deduction row and no positive Scheduled unpaid time before deduction offset.
+
+Paid leave is separate from worked hours. Closed holidays have no paid-hours allowance in this dataset. Taxes is a mock withholding, not a statutory Indian tax calculation.
+
+**Date limitation:** the Attendance page uses yesterday's runtime cutoff, while the existing payroll model retains its November 23, 2026 fixture cutoff. October is complete under either cutoff. The unreleased November calculation is a mock preview and should not be presented as a released payslip or assumed to advance with Attendance after that fixture cutoff.
+
+Print / save PDF opens the browser's print dialog. Print styles hide navigation and controls.
+
+## Key design and technical decisions
+
+- **A shared model connects the modules.** Scheduling, leave, attendance and payroll calculations live in `model.js` rather than independent screen-specific mock totals.
+- **Planned and recorded time are distinct.** The roster expresses the plan; recorded clocks provide worked time. Future approved leave is visible without fabricated clock records.
+- **Risk determines severity.** Rest and minor protections block publishing; overtime and shortages require manager review and acknowledgment.
+- **Consequences appear before approval.** Excess leave remains actionable, with explicit confirmation of the paid/LOP split.
+- **Dense data remains explainable.** The week grid supports staff/date comparison; attendance summaries open daily and weekly calculations; payslip earnings and negative deductions reconcile to net.
+- **Consistent visual foundations.** Manrope headings, DM Sans body text, Lucide icons, a dark green navigation shell and repeated surfaces/controls link the modules. Status labels accompany colour.
+- **Responsive representations follow the task.** Home stacks on narrow screens; attendance switches to an agenda at small widths; the schedule retains horizontal scrolling instead of compressing every cell.
+- **Client-side persistence suits the assignment.** Browser local storage retains edits without introducing a backend, accounts or real employee records.
+
+The [Figma rationale page](https://www.figma.com/design/ViyTUF5MpODuStLphrNIfS?node-id=156-6616) contains detailed screen references, visual specifications, trade-offs and external references. Its recorded example states are not live application data.
+
+## Persistence and demo state
+
+Shifts, leave decisions, Week Off overrides and published weeks persist in browser local storage. Another browser/profile can have a different state. There is no server sync or multi-manager collaboration.
+
+Existing migration code preserves compatible decisions and separates leave storage from roster editing. The December 7-13 assignment-clear migration runs once; later edits are retained. The removed Restore Planned Week action is not part of the current UI.
+
+To inspect untouched seeded data without changing a manager's saved work, use a separate browser profile or private window. Clearing site storage deletes that browser's saved demo edits and decisions; do not use it casually before a presentation.
+
+## Suggested walkthrough
+
+1. Show today's Home roster and open the upcoming unpublished week.
+2. Explain the shift times, actual/required coverage and weekly staff totals.
+3. Demonstrate one overtime/understaffing warning and a deliberately invalid rest/minor assignment. Correct blockers before publishing; acknowledge warnings explicitly.
+4. Review a pending request, inspect its correct balance and explain the paid/LOP confirmation.
+5. Follow approved dates into Leave balances, Attendance and Schedule; inspect resulting shortages.
+6. Open October attendance for the same employee, inspect worked-hours and overtime details, then reconcile the released October payslip and use Print / save PDF.
+
+Use a separate demo browser state for destructive or deliberately invalid examples. The Figma prototype illustrates selected layouts/states; the React application demonstrates runtime interactions and calculations.
+
+## Validation and scope
+
+`npm test` runs the model/rule suite. It covers scheduling boundaries, staffing, rest, minor limits, leave allocation, future leave, attendance reporting dates, overtime, payroll, persistence migrations and publish policy. Run it again when changing those behaviours; this README intentionally avoids a test count that can become stale.
+
+A successful model test run does not establish complete browser, assistive-technology, mobile-device or print-layout testing. Interaction, responsive and exported PDF checks remain separate.
+
+This is a take-home prototype: no backend, authentication, live clock integration, bank payments, production payroll compliance or automatic payslip-release workflow. Accessibility treatments and design references are not a claim of a completed WCAG audit or user research study.
