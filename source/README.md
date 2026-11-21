@@ -84,4 +84,11 @@ The Leave page includes Sofia vacation Nov 21; Jules vacation Nov 22; Finn sick 
 
 The Schedule toolbar retains Previous/Next week, the Week Offs & leave overlay, Copy last week and Review & publish. Restore Planned Week is no longer available in the UI.
 
-December staffing is checked against minimum assignments of 2 Opening, 2 Midday and 2 Closing on weekdays; weekends require 3 Midday. The grid shows Understaffed and actual/required counts for shortages, and Schedule checks lists matching warnings requiring acknowledgment before publication. Roster assignments are unchanged. October and November retain their existing staffing policy.
+December staffing is checked against minimum assignments of 2 Opening, 2 Midday and 2 Closing on weekdays; weekends require 3 Midday. The grid shows Understaffed and actual/required counts for shortages, and Schedule checks lists matching warnings requiring acknowledgment before publication. Roster assignments are unchanged. The same minimum assignment policy applies to every month.
+
+
+## All-month schedule checks and cleared week
+
+Every selected week uses the same checks, including month/year boundaries: over 40 hours is a warning; fewer than 8 hours rest, minors past 22:00 and minors above 32 weekly hours are blockers; staffing shortages are warnings. Historical assignments remain unchanged and can now show previously exempt minor-hour blockers. Warnings require acknowledgment and blockers prevent publishing.
+
+The upgrade clears only shift assignments for December 7-13, 2026, once, and marks that week unpublished. Other weeks, leave requests, balances and Week Off overrides are preserved. The cleared week remains editable; new assignments survive reloads. The old shift storage is retained.

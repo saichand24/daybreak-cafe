@@ -7,9 +7,9 @@ export const templates=[{name:'Opening',start:360,end:840,tone:'mint'},{name:'Mi
 export const templatesForDay=day=>templates
 export const shiftTemplate=(type,day)=>templatesForDay(day)[type]
 export const novemberPlannedTargets=day=>holidays.includes(day)?[0,0,0]:day==='2026-11-01'?[2,2,2]:[2,[0,6].includes(new Date(day+'T12:00:00Z').getUTCDay())?3:2,[2,4].includes(new Date(day+'T12:00:00Z').getUTCDay())?1:2]
-export const requiredShiftTargets=day=>/2026-(10|11|12)/.test(day)?octoberShiftTargets(day):null
-export const staffingSlotsForDay=day=>day.startsWith('2026-11')?[{name:'Opening',start:360,end:660,minimum:2},{name:'Morning',start:660,end:840,minimum:4},{name:'Midday',start:840,end:900,minimum:2},{name:'Evening',start:900,end:1140,minimum:3},{name:'Closing',start:1140,end:1380,minimum:1}]:staffingSlots
-export const staffingSlots=[{name:'Opening',start:360,end:660,minimum:1},{name:'Lunch',start:660,end:840,minimum:3},{name:'Midday',start:840,end:900,minimum:1},{name:'Afternoon',start:900,end:1140,minimum:2},{name:'Evening',start:1140,end:1380,minimum:1}]
+export const requiredShiftTargets=day=>octoberShiftTargets(day)
+export const staffingSlotsForDay=day=>staffingSlots
+export const staffingSlots=[{name:'Opening',start:360,end:660,minimum:2},{name:'Morning',start:660,end:840,minimum:4},{name:'Midday',start:840,end:900,minimum:2},{name:'Evening',start:900,end:1140,minimum:3},{name:'Closing',start:1140,end:1380,minimum:1}]
 export const date=(iso,offset=0)=>{const d=new Date(iso+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+offset);return d.toISOString().slice(0,10)}
 export const monday=iso=>date(iso,-((new Date(iso+'T12:00:00Z').getUTCDay()+6)%7))
 export const todayInCafe=(now=new Date())=>{
@@ -216,15 +216,12 @@ export function validate(shifts,requests,start,weekOffs={}){
     }
    }
   }
-  if(person.minor&&days.some(d=>d.startsWith('2026-11'))){
-   const carry=days.filter(d=>d<'2026-11-01').reduce((n,d)=>{const t=shiftTemplate(shifts[person.id+'|'+d],d);return n+(t?(t.end-t.start)/60:0)},0),ceiling=Math.max(32,carry)
-   if(total>ceiling)add(rulePolicy.minorWeekly.level,person.name+' is under 18 and is scheduled for '+total+' hours in the week starting '+start+'. The limit is 32 hours; remove '+(total-ceiling)+' hours before publishing.'+(carry?' Existing October carry-in is '+carry+' hours; November cannot add work beyond the remaining allowance.':''),days.filter(d=>d>='2026-11-01').map(d=>person.id+'|'+d).filter(k=>shifts[k]!=null))
-  }
+  if(person.minor&&total>32)add(rulePolicy.minorWeekly.level,person.name+' is under 18 and is scheduled for '+total+' hours in the week starting '+start+'. The limit is 32 hours; remove '+(total-32)+' hours before publishing.',days.map(day=>person.id+'|'+day).filter(key=>shifts[key]!=null))
   if(total>40)add(rulePolicy.weekly.level,person.name+' is scheduled for '+total+' hours this week, '+(total-40)+' hours over the 40-hour limit. Reduce the hours or acknowledge this warning when publishing.',days.map(d=>person.id+'|'+d).filter(k=>shifts[k]!=null))
  }
  for(const day of days){
   if(holidays.includes(day))continue
-  if(requiredShiftTargets(day))templates.slice(0,3).forEach((t,type)=>{const count=staff.filter(p=>shifts[p.id+'|'+day]===type&&!leaveAt(requests,p.id,day)&&!unavailable(p.id,day,weekOffs)).length;const required=requiredShiftTargets(day)[type];if(count!==required&&(!day.startsWith('2026-12')||count<required))add(rulePolicy.coverage.level,(count<required?'Understaffed: ':'')+t.name+' assignments on '+day+': '+count+'/'+required+' staff; '+(day.startsWith('2026-12')?'at least ':'exactly ')+required+' required.'+(count<required?' Assign '+(required-count)+' more staff.':''),[day])})
+  if(requiredShiftTargets(day))templates.slice(0,3).forEach((t,type)=>{const count=staff.filter(p=>shifts[p.id+'|'+day]===type&&!leaveAt(requests,p.id,day)&&!unavailable(p.id,day,weekOffs)).length;const required=requiredShiftTargets(day)[type];if(count<required)add(rulePolicy.coverage.level,(count<required?'Understaffed: ':'')+t.name+' assignments on '+day+': '+count+'/'+required+' staff; '+'at least '+required+' required.'+(count<required?' Assign '+(required-count)+' more staff.':''),[day])})
   for(const slot of staffingSlotsForDay(day)){
    for(let at=slot.start;at<slot.end;at+=30){
     const count=staff.filter(p=>{const t=shiftTemplate(shifts[p.id+'|'+day],day);return t&&t.start<=at&&at<t.end&&!leaveAt(requests,p.id,day)&&!unavailable(p.id,day)}).length
@@ -313,3 +310,5 @@ export const refreshLeaveRequests=existing=>{
   return saved??expected
  }),...records.filter(r=>r.id>9)]
 }
+
+export const removeScheduleWeek=(shifts,start)=>Object.fromEntries(Object.entries(shifts).filter(([key])=>{const day=key.split('|')[1];return day<start||day>date(start,6)}))
