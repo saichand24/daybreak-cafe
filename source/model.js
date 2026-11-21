@@ -7,7 +7,7 @@ export const templates=[{name:'Opening',start:360,end:840,tone:'mint'},{name:'Mi
 export const templatesForDay=day=>templates
 export const shiftTemplate=(type,day)=>templatesForDay(day)[type]
 export const novemberPlannedTargets=day=>holidays.includes(day)?[0,0,0]:day==='2026-11-01'?[2,2,2]:[2,[0,6].includes(new Date(day+'T12:00:00Z').getUTCDay())?3:2,[2,4].includes(new Date(day+'T12:00:00Z').getUTCDay())?1:2]
-export const requiredShiftTargets=day=>/2026-(10|11)/.test(day)?octoberShiftTargets(day):null
+export const requiredShiftTargets=day=>/2026-(10|11|12)/.test(day)?octoberShiftTargets(day):null
 export const staffingSlotsForDay=day=>day.startsWith('2026-11')?[{name:'Opening',start:360,end:660,minimum:2},{name:'Morning',start:660,end:840,minimum:4},{name:'Midday',start:840,end:900,minimum:2},{name:'Evening',start:900,end:1140,minimum:3},{name:'Closing',start:1140,end:1380,minimum:1}]:staffingSlots
 export const staffingSlots=[{name:'Opening',start:360,end:660,minimum:1},{name:'Lunch',start:660,end:840,minimum:3},{name:'Midday',start:840,end:900,minimum:1},{name:'Afternoon',start:900,end:1140,minimum:2},{name:'Evening',start:1140,end:1380,minimum:1}]
 export const date=(iso,offset=0)=>{const d=new Date(iso+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+offset);return d.toISOString().slice(0,10)}
@@ -224,7 +224,7 @@ export function validate(shifts,requests,start,weekOffs={}){
  }
  for(const day of days){
   if(holidays.includes(day))continue
-  if(/2026-(10|11)/.test(day))templates.slice(0,3).forEach((t,type)=>{const count=staff.filter(p=>shifts[p.id+'|'+day]===type&&!leaveAt(requests,p.id,day)&&!unavailable(p.id,day,weekOffs)).length;const required=octoberShiftTargets(day)[type];if(count!==required)add(rulePolicy.coverage.level,(count<required?'Understaffed: ':'')+t.name+' assignments on '+day+': '+count+'/'+required+' staff; exactly '+required+' required.'+(count<required?' Assign '+(required-count)+' more staff.':''),[day])})
+  if(requiredShiftTargets(day))templates.slice(0,3).forEach((t,type)=>{const count=staff.filter(p=>shifts[p.id+'|'+day]===type&&!leaveAt(requests,p.id,day)&&!unavailable(p.id,day,weekOffs)).length;const required=requiredShiftTargets(day)[type];if(count!==required&&(!day.startsWith('2026-12')||count<required))add(rulePolicy.coverage.level,(count<required?'Understaffed: ':'')+t.name+' assignments on '+day+': '+count+'/'+required+' staff; '+(day.startsWith('2026-12')?'at least ':'exactly ')+required+' required.'+(count<required?' Assign '+(required-count)+' more staff.':''),[day])})
   for(const slot of staffingSlotsForDay(day)){
    for(let at=slot.start;at<slot.end;at+=30){
     const count=staff.filter(p=>{const t=shiftTemplate(shifts[p.id+'|'+day],day);return t&&t.start<=at&&at<t.end&&!leaveAt(requests,p.id,day)&&!unavailable(p.id,day)}).length
